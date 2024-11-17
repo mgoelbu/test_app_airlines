@@ -9,7 +9,9 @@ from langchain.prompts import PromptTemplate
 my_secret_key = st.secrets["MyOpenAIKey"]
 openai.api_key = my_secret_key
 
-llm = OpenAI(model_name="gpt-4o-mini", temperature=0.7, openai_api_key=my_secret_key)
+llm = OpenAI(model_name="gpt-4o-mini", temperature=0.7
+# , openai_api_key=my_secret_
+            )
 
 # Function to get response from GPT-4o Mini
 def get_gpt4o_mini_response(input_text, no_words, blog_style):
