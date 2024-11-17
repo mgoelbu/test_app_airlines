@@ -101,8 +101,42 @@ elif branch == "Pre-travel":
 
     # User inputs
     destination = st.text_input("Enter Destination")
+
+    # Dynamic interests dropdown based on the destination
+    if destination:
+        # Example: Replace with an API call or database lookup for top interests
+        # Currently hardcoded for demonstration purposes
+        destination_interests = {
+            "New York": ["Statue of Liberty", "Central Park", "Broadway Shows", "Times Square", "Brooklyn Bridge",
+                         "Museum of Modern Art", "Empire State Building", "High Line", "Fifth Avenue", "Rockefeller Center"],
+            "Paris": ["Eiffel Tower", "Louvre Museum", "Notre-Dame Cathedral", "Champs-Élysées", "Montmartre",
+                      "Versailles", "Seine River Cruise", "Disneyland Paris", "Arc de Triomphe", "Latin Quarter"],
+            "Tokyo": ["Shinjuku Gyoen", "Tokyo Tower", "Akihabara", "Meiji Shrine", "Senso-ji Temple",
+                      "Odaiba", "Ginza", "Tsukiji Market", "Harajuku", "Roppongi"],
+        }
+
+        # Default interests if destination is not found in hardcoded list
+        top_interests = destination_interests.get(destination.title(), ["Beach", "Hiking", "Museums", "Local Food",
+                                                                        "Shopping", "Parks", "Cultural Sites", 
+                                                                        "Water Sports", "Music Events", "Nightlife"])
+        
+        interests = st.multiselect(
+            "Select your interests",
+            top_interests + ["Other"],  # Include "Other" option
+            default=None
+        )
+
+        # If user selects "Other", allow them to input custom interests
+        if "Other" in interests:
+            custom_interest = st.text_input("Enter your custom interest(s)")
+            if custom_interest:
+                interests.append(custom_interest)
+
+    else:
+        st.write("Enter a destination to see the top activities.")
+
+    # Budget, duration, and travel dates
     duration = st.number_input("Enter Duration (in days)", min_value=1, max_value=30, value=5)
-    interests = st.text_input("Enter your interests (comma-separated)")
     budget = st.selectbox("Select your budget level", ["Low", "Medium", "High"])
     travel_dates = st.date_input("Select your travel dates", [])
 
@@ -111,13 +145,15 @@ elif branch == "Pre-travel":
 
     if generate_itinerary:
         # Create a prompt template
-        prompt_template = """You are a travel assistant. Create a {duration}-day itinerary for a trip to {destination}. The user is interested in {interests}. The budget level is {budget}. The travel dates are {travel_dates}. Provide a detailed plan for each day."""
+        prompt_template = """You are a travel assistant. Create a {duration}-day itinerary for a trip to {destination}. 
+        The user is interested in {interests}. The budget level is {budget}. The travel dates are {travel_dates}. 
+        Provide a detailed plan for each day."""
 
         # Initialize the prompt with the user's inputs
         prompt = prompt_template.format(
             duration=duration,
             destination=destination,
-            interests=interests,
+            interests=", ".join(interests) if interests else "general activities",
             budget=budget,
             travel_dates=travel_dates
         )
