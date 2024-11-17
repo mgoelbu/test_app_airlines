@@ -6,7 +6,7 @@ from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 
 # Load your API Key
-my_secret_key = st.secrets["IS883-OpenAIKey-RV"]
+my_secret_key = st.secrets["MyOpenAIKey"]
 openai.api_key = my_secret_key
 
 llm = OpenAI(model_name="gpt-4o-mini", temperature=0.7, openai_api_key=my_secret_key)
