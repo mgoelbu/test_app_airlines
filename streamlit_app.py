@@ -135,27 +135,43 @@ elif branch == "Pre-travel":
     else:
         st.write("Enter a destination to see the top activities.")
 
-    # Budget, duration, and travel dates
-    duration = st.number_input("Enter Duration (in days)", min_value=1, max_value=30, value=5)
-    budget = st.selectbox("Select your budget level", ["Low", "Medium", "High"])
+    # Calendar for travel dates
     travel_dates = st.date_input("Select your travel dates", [])
+
+    # Budget categories
+    budget = st.selectbox(
+        "Select your budget level",
+        ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"]
+    )
+
+    # Cuisine requirements
+    cuisine = st.radio("Cuisine Requirements?", ["Veg", "Non-Veg", "Vegan"])
+
+    # Accessibility requirements
+    accessibility = st.radio("Accessibility Requirements?", ["Yes", "No"])
 
     # Generate itinerary button
     generate_itinerary = st.button("Generate Itinerary")
 
     if generate_itinerary:
         # Create a prompt template
-        prompt_template = """You are a travel assistant. Create a {duration}-day itinerary for a trip to {destination}. 
-        The user is interested in {interests}. The budget level is {budget}. The travel dates are {travel_dates}. 
-        Provide a detailed plan for each day."""
+        prompt_template = """
+        You are a travel assistant. Create a detailed itinerary for a trip to {destination}. 
+        The user is interested in {interests}. The budget level is {budget}. 
+        The travel dates are {travel_dates}. The user prefers {cuisine} food and 
+        has accessibility requirements: {accessibility}. For each activity, include 
+        the expected expense in both local currency and USD. Provide a total expense 
+        at the end and ensure it aligns with the budget range.
+        """
 
         # Initialize the prompt with the user's inputs
         prompt = prompt_template.format(
-            duration=duration,
             destination=destination,
             interests=", ".join(interests) if interests else "general activities",
             budget=budget,
-            travel_dates=travel_dates
+            travel_dates=travel_dates,
+            cuisine=cuisine,
+            accessibility=accessibility
         )
 
         try:
@@ -167,8 +183,18 @@ elif branch == "Pre-travel":
             # Extract the itinerary from the response
             itinerary = response.choices[0].message["content"]
 
+            # Example: Add mock total expense calculation based on budget
+            if "Low" in budget:
+                total_expense = "$4,800 (approx)"
+            elif "Medium" in budget:
+                total_expense = "$9,000 (approx)"
+            else:
+                total_expense = "$12,500 (approx)"
+
+            # Display the itinerary
             st.subheader("Generated Itinerary:")
             st.write(itinerary)
+            st.write(f"**Total Expected Expense:** {total_expense}")
         except Exception as e:
             st.error(f"An error occurred while generating the itinerary: {e}")
 
