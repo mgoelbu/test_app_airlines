@@ -2,24 +2,24 @@ import streamlit as st
 import openai
 import pandas as pd
 from langchain.llms import OpenAI
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
 
 # Load your API Key
 my_secret_key = st.secrets["MyOpenAIKey"]
 openai.api_key = my_secret_key
 
-llm = OpenAI(model_name="gpt-4o-mini", temperature=0.7
-# , openai_api_key=my_secret_
-            )
+llm = OpenAI(
+    model_name="gpt-4",  # Replace with a valid OpenAI model
+    temperature=0.7,
+    openai_api_key=my_secret_key
+)
 
-# Function to get response from GPT-4o Mini
-def get_gpt4o_mini_response(input_text, no_words, blog_style):
+# Function to get response from GPT-4
+def get_gpt4_response(input_text, no_words, blog_style):
     try:
         # Construct the prompt
         prompt = f"Write a blog for a {blog_style} job profile on the topic '{input_text}'. Limit the content to approximately {no_words} words."
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model="gpt-4",  # Ensure this is a valid model
             messages=[{"role": "user", "content": prompt}]
         )
 
@@ -60,7 +60,7 @@ if branch == "Generate Blogs":
 
     # Display the generated blog content
     if submit:
-        blog_content = get_gpt4o_mini_response(input_text, no_words, blog_style)
+        blog_content = get_gpt4_response(input_text, no_words, blog_style)
         if blog_content:
             st.write(blog_content)
 
@@ -91,16 +91,19 @@ elif branch == "Pre-travel":
             travel_dates=travel_dates
         )
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
-        )
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}]
+            )
 
-        # Extract the itinerary from the response
-        itinerary = response.choices[0].message["content"]
+            # Extract the itinerary from the response
+            itinerary = response.choices[0].message["content"]
 
-        st.subheader("Generated Itinerary:")
-        st.write(itinerary)
+            st.subheader("Generated Itinerary:")
+            st.write(itinerary)
+        except Exception as e:
+            st.error(f"An error occurred while generating the itinerary: {e}")
 
 # Post-travel Branch
 elif branch == "Post-travel":
@@ -120,15 +123,16 @@ elif branch == "Post-travel":
         if 'Description' in df.columns and 'Amount' in df.columns:
             # Function to classify each expense
             def classify_expense(description):
-                prompt = f"Classify the following expense description into categories like 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Miscellaneous':\n\n'{description}'\n\nCategory:"
-
-                # Use ChatCompletion with 'gpt-4o-mini'
-                response = openai.ChatCompletion.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                category = response.choices[0].message["content"].strip()
-                return category
+                try:
+                    prompt = f"Classify the following expense description into categories like 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Miscellaneous':\n\n'{description}'\n\nCategory:"
+                    response = openai.ChatCompletion.create(
+                        model="gpt-4",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    return response.choices[0].message["content"].strip()
+                except Exception as e:
+                    st.error(f"Error in classifying expense: {e}")
+                    return "Unknown"
 
             # Apply the classification function to each description
             df['Category'] = df['Description'].apply(classify_expense)
@@ -137,19 +141,21 @@ elif branch == "Post-travel":
             st.write(df)
 
             # Generate a summary of expenses
-            total_spent = df['Amount'].sum()
-            summary_prompt = f"Provide a quick summary of the travel expenses based on the following data:\n\n{df.to_string()}\n\nSummary:"
+            try:
+                total_spent = df['Amount'].sum()
+                summary_prompt = f"Provide a quick summary of the travel expenses based on the following data:\n\n{df.to_string()}\n\nSummary:"
 
-            # Use ChatCompletion for the summary
-            response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": summary_prompt}]
-            )
-            summary = response.choices[0].message["content"].strip()
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": summary_prompt}]
+                )
+                summary = response.choices[0].message["content"].strip()
 
-            st.subheader("Summary:")
-            st.write(summary)
+                st.subheader("Summary:")
+                st.write(summary)
 
-            st.subheader(f"Total Spent: ${total_spent:.2f}")
+                st.subheader(f"Total Spent: ${total_spent:.2f}")
+            except Exception as e:
+                st.error(f"Error in generating summary: {e}")
         else:
             st.error("The uploaded Excel file must contain 'Description' and 'Amount' columns.")
