@@ -2,6 +2,7 @@ import streamlit as st
 import openai
 import pandas as pd
 from langchain.llms import OpenAI
+import os
 
 # Load your API Key
 my_secret_key = st.secrets["MyOpenAIKey"]
