@@ -10,7 +10,7 @@ os.environ["OPENAI_API_KEY"] = my_secret_key
 
 
 llm = OpenAI(
-    model_name="gpt-4",  # Replace with a valid OpenAI model
+    model_name="gpt-4o-mini",  # Replace with a valid OpenAI model
     temperature=0.7,
     openai_api_key=my_secret_key
 )
@@ -21,7 +21,7 @@ def get_gpt4_response(input_text, no_words, blog_style):
         # Construct the prompt
         prompt = f"Write a blog for a {blog_style} job profile on the topic '{input_text}'. Limit the content to approximately {no_words} words."
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # Ensure this is a valid model
+            model="gpt-4o-mini",  # Ensure this is a valid model
             messages=[{"role": "user", "content": prompt}]
         )
 
@@ -95,7 +95,7 @@ elif branch == "Pre-travel":
 
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}]
             )
 
@@ -128,7 +128,7 @@ elif branch == "Post-travel":
                 try:
                     prompt = f"Classify the following expense description into categories like 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Miscellaneous':\n\n'{description}'\n\nCategory:"
                     response = openai.ChatCompletion.create(
-                        model="gpt-4",
+                        model="gpt-4o-mini",
                         messages=[{"role": "user", "content": prompt}]
                     )
                     return response.choices[0].message["content"].strip()
@@ -148,7 +148,7 @@ elif branch == "Post-travel":
                 summary_prompt = f"Provide a quick summary of the travel expenses based on the following data:\n\n{df.to_string()}\n\nSummary:"
 
                 response = openai.ChatCompletion.create(
-                    model="gpt-4",
+                    model="gpt-4o-mini",
                     messages=[{"role": "user", "content": summary_prompt}]
                 )
                 summary = response.choices[0].message["content"].strip()
