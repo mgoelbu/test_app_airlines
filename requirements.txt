@@ -3,3 +3,5 @@ openai==0.28
 pandas
 langchain
 langchain-community
+pytesseract
+pillow
