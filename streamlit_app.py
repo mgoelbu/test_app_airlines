@@ -5,7 +5,7 @@ from langchain.llms import OpenAI
 
 # Load your API Key
 my_secret_key = st.secrets["MyOpenAIKey"]
-openai.api_key = my_secret_key
+openai_api_key = my_secret_key
 
 llm = OpenAI(
     model_name="gpt-4",  # Replace with a valid OpenAI model
