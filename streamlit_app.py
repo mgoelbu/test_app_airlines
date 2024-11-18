@@ -27,8 +27,6 @@ def get_gpt4_response(input_text, no_words, blog_style):
             model="gpt-4o-mini",  # Ensure this is a valid model
             messages=[{"role": "user", "content": prompt}]
         )
-
-        # Extract and return the response content
         return response.choices[0].message["content"]
     except Exception as e:
         st.error(f"An error occurred: {e}")
@@ -216,4 +214,6 @@ elif branch == "OCR Receipts":
     if uploaded_receipt:
         receipt_image = Image.open(uploaded_receipt)
         receipt_data = preprocess_and_extract(receipt_image)
-        if receipt_data
+        if receipt_data:
+            st.subheader("Extracted Data:")
+            st.write(receipt_data)
