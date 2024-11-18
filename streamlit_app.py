@@ -52,6 +52,10 @@ def fetch_flight_prices(origin, destination, departure_date):
             json=payload
         )
 
+        # Debugging: Print the entire response
+        print("Full Response from Serper.dev API:")
+        print(response.json())  # Prints the full response to help debug issues
+
         # Raise an error for bad HTTP responses
         response.raise_for_status()
 
@@ -212,6 +216,4 @@ elif branch == "OCR Receipts":
     if uploaded_receipt:
         receipt_image = Image.open(uploaded_receipt)
         receipt_data = preprocess_and_extract(receipt_image)
-        if receipt_data:
-            st.subheader("Extracted Data:")
-            st.write(receipt_data)
+        if receipt_data
