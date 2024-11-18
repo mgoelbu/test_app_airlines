@@ -37,18 +37,32 @@ def get_gpt4_response(input_text, no_words, blog_style):
 # Function to fetch flight prices using Serper.dev
 def fetch_flight_prices(origin, destination, departure_date):
     try:
-        serper_api_key = st.secrets["SerperAPIKey"]  # Add your Serper.dev API key in secrets
-        headers = {"X-API-KEY": serper_api_key}
+        serper_api_key = st.secrets["SerperAPIKey"]  # Replace with your Serper.dev API key
+        headers = {
+            "X-API-KEY": serper_api_key,
+            "Content-Type": "application/json"
+        }
         query = f"flights from {origin} to {destination} on {departure_date}"
-        url = "https://google.serper.dev/search"
-        response = requests.post(url, headers=headers, json={"q": query})
-        data = response.json()
+        payload = {"q": query}  # Construct the payload
 
-        # Extract flight price snippet (mocked logic for demonstration)
+        # API request
+        response = requests.post(
+            "https://google.serper.dev/search",
+            headers=headers,
+            json=payload
+        )
+
+        # Raise an error for bad HTTP responses
+        response.raise_for_status()
+
+        # Parse and return the relevant snippet from the API response
+        data = response.json()
         snippet = data.get("answerBox", {}).get("snippet", "No flight prices found.")
         return snippet
-    except Exception as e:
-        return f"Error fetching flight prices: {e}"
+    except requests.exceptions.RequestException as e:
+        return f"HTTP Request failed: {e}"
+    except ValueError:
+        return "Failed to parse the response from the Serper.dev API."
 
 # Function for OCR extraction
 def preprocess_and_extract(image):
@@ -79,7 +93,7 @@ def preprocess_and_extract(image):
 
 # Streamlit UI configuration
 st.set_page_config(
-    page_title="Generate Blogs",
+    page_title="Travel Planning Assistant",
     page_icon="🛫",
     layout="centered",
     initial_sidebar_state="collapsed"
