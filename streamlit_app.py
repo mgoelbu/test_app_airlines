@@ -6,6 +6,7 @@ import pytesseract
 from PIL import Image, ImageFilter
 import re
 import os
+import requests
 
 ### Load your API Key
 my_secret_key = st.secrets['MyOpenAIKey']
@@ -32,6 +33,22 @@ def get_gpt4_response(input_text, no_words, blog_style):
     except Exception as e:
         st.error(f"An error occurred: {e}")
         return None
+
+# Function to fetch flight prices using Serper.dev
+def fetch_flight_prices(origin, destination, departure_date):
+    try:
+        serper_api_key = st.secrets["SerperAPIKey"]  # Add your Serper.dev API key in secrets
+        headers = {"X-API-KEY": serper_api_key}
+        query = f"flights from {origin} to {destination} on {departure_date}"
+        url = "https://google.serper.dev/search"
+        response = requests.post(url, headers=headers, json={"q": query})
+        data = response.json()
+
+        # Extract flight price snippet (mocked logic for demonstration)
+        snippet = data.get("answerBox", {}).get("snippet", "No flight prices found.")
+        return snippet
+    except Exception as e:
+        return f"Error fetching flight prices: {e}"
 
 # Function for OCR extraction
 def preprocess_and_extract(image):
@@ -68,11 +85,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-st.header("Generate Blogs 🛫")
+st.header("Travel Planning Assistant 🛫")
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
-branch = st.sidebar.radio("Select a branch", ["Generate Blogs", "Pre-travel", "Post-travel", "OCR Receipts"])
+branch = st.sidebar.radio("Select a branch", ["Generate Blogs", "Plan Your Travel", "Post-travel", "OCR Receipts"])
 
 if branch == "Generate Blogs":
     st.header("Generate Blogs 🛫")
@@ -95,17 +112,23 @@ if branch == "Generate Blogs":
         if blog_content:
             st.write(blog_content)
 
-# Pre-travel Branch
-elif branch == "Pre-travel":
-    st.header("Pre-travel: Itinerary Generation")
+# Plan Your Travel Branch
+elif branch == "Plan Your Travel":
+    st.header("Plan Your Travel 🗺️")
 
     # User inputs
-    destination = st.text_input("Enter Destination")
+    origin = st.text_input("Flying From (Origin Airport/City)")
+    destination = st.text_input("Flying To (Destination Airport/City)")
+    travel_dates = st.date_input("Select your travel dates", [])
+
+    # Fetch flight prices
+    if origin and destination and travel_dates:
+        flight_prices = fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
+        st.write("**Estimated Flight Prices:**")
+        st.write(flight_prices)
 
     # Dynamic interests dropdown based on the destination
     if destination:
-        # Example: Replace with an API call or database lookup for top interests
-        # Currently hardcoded for demonstration purposes
         destination_interests = {
             "New York": ["Statue of Liberty", "Central Park", "Broadway Shows", "Times Square", "Brooklyn Bridge",
                          "Museum of Modern Art", "Empire State Building", "High Line", "Fifth Avenue", "Rockefeller Center"],
@@ -114,29 +137,18 @@ elif branch == "Pre-travel":
             "Tokyo": ["Shinjuku Gyoen", "Tokyo Tower", "Akihabara", "Meiji Shrine", "Senso-ji Temple",
                       "Odaiba", "Ginza", "Tsukiji Market", "Harajuku", "Roppongi"],
         }
-
-        # Default interests if destination is not found in hardcoded list
         top_interests = destination_interests.get(destination.title(), ["Beach", "Hiking", "Museums", "Local Food",
                                                                         "Shopping", "Parks", "Cultural Sites", 
                                                                         "Water Sports", "Music Events", "Nightlife"])
-        
         interests = st.multiselect(
             "Select your interests",
             top_interests + ["Other"],  # Include "Other" option
             default=None
         )
-
-        # If user selects "Other", allow them to input custom interests
         if "Other" in interests:
             custom_interest = st.text_input("Enter your custom interest(s)")
             if custom_interest:
                 interests.append(custom_interest)
-
-    else:
-        st.write("Enter a destination to see the top activities.")
-
-    # Calendar for travel dates
-    travel_dates = st.date_input("Select your travel dates", [])
 
     # Budget categories
     budget = st.selectbox(
@@ -144,132 +156,48 @@ elif branch == "Pre-travel":
         ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"]
     )
 
-    # Cuisine requirements
-    cuisine = st.radio("Cuisine Requirements?", ["Veg", "Non-Veg", "Vegan"])
-
-    # Accessibility requirements
-    accessibility = st.radio("Accessibility Requirements?", ["Yes", "No"])
-
     # Generate itinerary button
     generate_itinerary = st.button("Generate Itinerary")
 
     if generate_itinerary:
-        # Create a prompt template
         prompt_template = """
-        You are a travel assistant. Create a detailed itinerary for a trip to {destination}. 
+        You are a travel assistant. Create a detailed itinerary for a trip from {origin} to {destination}. 
         The user is interested in {interests}. The budget level is {budget}. 
-        The travel dates are {travel_dates}. The user prefers {cuisine} food and 
-        has accessibility requirements: {accessibility}. For each activity, include 
-        the expected expense in both local currency and USD. Provide a total expense 
-        at the end and ensure it aligns with the budget range.
+        The travel dates are {travel_dates}. For each activity, include the expected expense in both local currency 
+        and USD. Provide a total expense at the end.
         """
-
-        # Initialize the prompt with the user's inputs
         prompt = prompt_template.format(
+            origin=origin,
             destination=destination,
             interests=", ".join(interests) if interests else "general activities",
             budget=budget,
-            travel_dates=travel_dates,
-            cuisine=cuisine,
-            accessibility=accessibility
+            travel_dates=travel_dates
         )
-
         try:
             response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}]
             )
-
-            # Extract the itinerary from the response
             itinerary = response.choices[0].message["content"]
-
-            # Example: Add mock total expense calculation based on budget
-            if "Low" in budget:
-                total_expense = "$4,800 (approx)"
-            elif "Medium" in budget:
-                total_expense = "$9,000 (approx)"
-            else:
-                total_expense = "$12,500 (approx)"
-
-            # Display the itinerary
             st.subheader("Generated Itinerary:")
             st.write(itinerary)
-            st.write(f"**Total Expected Expense:** {total_expense}")
         except Exception as e:
             st.error(f"An error occurred while generating the itinerary: {e}")
 
 # Post-travel Branch
 elif branch == "Post-travel":
     st.header("Post-travel: Data Classification and Summary")
-
-    # Allow user to upload an Excel file
     uploaded_file = st.file_uploader("Upload your travel data (Excel file)", type=["xlsx"])
-
     if uploaded_file is not None:
-        # Read the Excel file
         df = pd.read_excel(uploaded_file)
-
         st.subheader("Data Preview:")
         st.write(df.head())
-
-        # Check if required columns exist
-        if 'Description' in df.columns and 'Amount' in df.columns:
-            # Function to classify each expense
-            def classify_expense(description):
-                try:
-                    prompt = f"Classify the following expense description into categories like 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Miscellaneous':\n\n'{description}'\n\nCategory:"
-                    response = openai.ChatCompletion.create(
-                        model="gpt-4o-mini",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    return response.choices[0].message["content"].strip()
-                except Exception as e:
-                    st.error(f"Error in classifying expense: {e}")
-                    return "Unknown"
-
-            # Apply the classification function to each description
-            df['Category'] = df['Description'].apply(classify_expense)
-
-            st.subheader("Classified Data:")
-            st.write(df)
-
-            # Generate a summary of expenses
-            try:
-                total_spent = df['Amount'].sum()
-                summary_prompt = f"Provide a quick summary of the travel expenses based on the following data:\n\n{df.to_string()}\n\nSummary:"
-
-                response = openai.ChatCompletion.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": summary_prompt}]
-                )
-                summary = response.choices[0].message["content"].strip()
-
-                st.subheader("Summary:")
-                st.write(summary)
-
-                st.subheader(f"Total Spent: ${total_spent:.2f}")
-            except Exception as e:
-                st.error(f"Error in generating summary: {e}")
-        else:
-            st.error("The uploaded Excel file must contain 'Description' and 'Amount' columns.")
-
-# OCR Receipts Branch
 elif branch == "OCR Receipts":
     st.header("OCR Receipts: Extract Data from Receipts")
-
-    # Allow user to upload receipt image
     uploaded_receipt = st.file_uploader("Upload your receipt image (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
-
-    if uploaded_receipt is not None:
-        # Process the uploaded image
+    if uploaded_receipt:
         receipt_image = Image.open(uploaded_receipt)
-        st.image(receipt_image, caption="Uploaded Receipt", use_column_width=True)
-
-        with st.spinner("Processing and extracting data..."):
-            receipt_data = preprocess_and_extract(receipt_image)
-            if receipt_data:
-                st.subheader("Extracted Data:")
-                st.write(f"**Raw Text:** {receipt_data['Raw Text']}")
-                st.write(f"**Amount:** {receipt_data['Amount'] if receipt_data['Amount'] else 'Not Found'}")
-                st.write(f"**Date:** {receipt_data['Date'] if receipt_data['Date'] else 'Not Found'}")
-                st.write(f"**Type:** {receipt_data['Type']}")
+        receipt_data = preprocess_and_extract(receipt_image)
+        if receipt_data:
+            st.subheader("Extracted Data:")
+            st.write(receipt_data)
