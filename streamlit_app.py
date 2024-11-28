@@ -1,3 +1,6 @@
+#my_secret_key = st.secrets['IS883-OpenAIKey-RV']
+#openai.api_key = my_secret_key
+
 import os
 from langchain_core.tools import Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
@@ -7,6 +10,7 @@ import streamlit as st
 # Load API keys
 os.environ["OPENAI_API_KEY"] = st.secrets["MyOpenAIKey"]
 os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
+openai.api_key = my_secret_key
 
 # Initialize the Google Serper API Wrapper
 search = GoogleSerperAPIWrapper()
