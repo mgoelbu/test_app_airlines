@@ -1,18 +1,14 @@
 import os
-import openai
-import re
-import pandas as pd
-import streamlit as st
-from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut
 from langchain_core.tools import Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
+import openai
+import streamlit as st
 
 # Load API keys
 os.environ["OPENAI_API_KEY"] = st.secrets["MyOpenAIKey"]
 os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
 
-# Initialize Google Serper API Wrapper
+# Initialize the Google Serper API Wrapper
 search = GoogleSerperAPIWrapper()
 serper_tool = Tool(
     name="GoogleSerper",
@@ -20,33 +16,7 @@ serper_tool = Tool(
     description="Useful for when you need to look up some information on the internet.",
 )
 
-# Function to dynamically fetch interest suggestions using ChatGPT
-def fetch_interests_with_chatgpt(destination):
-    try:
-        prompt = f"""
-        You are a travel assistant. Suggest the top 10 points of interest or activities for tourists in {destination}.
-        Ensure the suggestions cover a variety of activities such as cultural sites, natural attractions, local experiences, 
-        and unique landmarks.
-        """
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        interests = response.choices[0].message["content"].split("\n")
-        return [interest.strip("- ") for interest in interests if interest]
-    except Exception as e:
-        return ["Other"]
-
-# Function to fetch flight prices using Google Serper
-def fetch_flight_prices(origin, destination, departure_date):
-    try:
-        query = f"flights from {origin} to {destination} on {departure_date}"
-        raw_response = serper_tool.func(query)
-        return format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date)
-    except Exception as e:
-        return f"An error occurred while fetching flight prices: {e}"
-
-# Function to format flight price data with ChatGPT
+# Function to query ChatGPT for better formatting
 def format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date):
     try:
         prompt = f"""
@@ -66,22 +36,31 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
     except Exception as e:
         return f"An error occurred while formatting the response: {e}"
 
-# Function to generate a detailed itinerary with ChatGPT
+# Function to fetch flight prices and format them with ChatGPT
+def fetch_flight_prices(origin, destination, departure_date):
+    try:
+        query = f"flights from {origin} to {destination} on {departure_date}"
+        raw_response = serper_tool.func(query)
+        formatted_response = format_flight_prices_with_chatgpt(
+            raw_response, origin, destination, departure_date
+        )
+        return formatted_response
+    except Exception as e:
+        return f"An error occurred while fetching or formatting flight prices: {e}"
+
+# Function to generate a detailed itinerary using ChatGPT
 def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget):
     try:
         prompt_template = """
         You are a travel assistant. Create a detailed itinerary for a trip from {origin} to {destination}. 
         The user is interested in {interests}. The budget level is {budget}. 
-        The travel dates are {travel_dates}. For each activity, include:
-        - Activity name
-        - City and country context
-        - Latitude and longitude for geocoding purposes
-        Provide a minimum of 5 activities with full details for accurate location mapping.
+        The travel dates are {travel_dates}. For each activity, include the expected expense in both local currency 
+        and USD. Provide a total expense at the end.
         """
         prompt = prompt_template.format(
             origin=origin,
             destination=destination,
-            interests=", ".join(interests) if interests else "Other",
+            interests=", ".join(interests) if interests else "general activities",
             budget=budget,
             travel_dates=travel_dates
         )
@@ -93,112 +72,107 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
     except Exception as e:
         return f"An error occurred while generating the itinerary: {e}"
 
-# Function to extract activities with coordinates from the itinerary
-def extract_activities_with_coordinates(itinerary_text):
-    pattern = re.compile(
-        r"Activity Name: (.*?)\nCity and Country: (.*?)\n.*?Latitude & Longitude: ([\d.\-]+), ([\d.\-]+)",
-        re.DOTALL
-    )
-    activities = []
-    for match in pattern.finditer(itinerary_text):
-        place, city, lat, lon = match.groups()
-        activities.append({
-            'Place': place.strip(),
-            'City': city.strip(),
-            'lat': float(lat.strip()),
-            'lon': float(lon.strip())
-        })
-    return pd.DataFrame(activities)
+# Streamlit UI configuration
+st.set_page_config(
+    page_title="Travel Planning Assistant",
+    page_icon="🛫",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
-# Fallback geocoding function
-def geocode_places(places, context=""):
-    geolocator = Nominatim(user_agent="travel_planner")
-    geocoded_data = []
-    for place in places:
-        try:
-            location = geolocator.geocode(f"{place}, {context}", timeout=10)
-            if location:
-                geocoded_data.append({'Place': place, 'lat': location.latitude, 'lon': location.longitude})
-            else:
-                st.warning(f"Could not geocode: {place}")
-        except GeocoderTimedOut:
-            st.warning(f"Geocoding timed out for {place}. Skipping.")
-    return pd.DataFrame(geocoded_data)
-
-# Initialize session state for navigation and interests
-if "active_branch" not in st.session_state:
-    st.session_state.active_branch = None
-if "interests" not in st.session_state:
-    st.session_state.interests = []
-if "destination_interests" not in st.session_state:
-    st.session_state.destination_interests = []
-
-# Navigation
 st.header("Travel Planning Assistant 🛫")
-st.subheader("Choose an option to get started:")
 
-if st.session_state.active_branch is None:
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Pre-travel", key="pre_travel_btn"):
-            st.session_state.active_branch = "Pre-travel"
-    with col2:
-        if st.button("Post-travel", key="post_travel_btn"):
-            st.session_state.active_branch = "Post-travel"
+# Sidebar Navigation
+st.sidebar.title("Navigation")
+branch = st.sidebar.radio("Select a branch", ["Plan Your Travel", "Post-travel", "OCR Receipts"])
 
-# Pre-travel Branch
-if st.session_state.active_branch == "Pre-travel":
+# Plan Your Travel Branch
+if branch == "Plan Your Travel":
     st.header("Plan Your Travel 🗺️")
+
+    # Step 1: Collect basic trip details
     origin = st.text_input("Flying From (Origin Airport/City)")
     destination = st.text_input("Flying To (Destination Airport/City)")
     travel_dates = st.date_input("Select your travel dates", [])
-    budget = st.selectbox("Select your budget level", ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"])
+    budget = st.selectbox(
+        "Select your budget level",
+        ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"]
+    )
 
-    # Dynamic interest suggestions
-    if destination and st.button("Set Interests"):
-        st.session_state.destination_interests = fetch_interests_with_chatgpt(destination)
+    # Initialize session state for interests and destination interests
+    if "interests" not in st.session_state:
+        st.session_state.interests = []
+    if "destination_interests" not in st.session_state:
+        st.session_state.destination_interests = []
+
+    if st.button("Set Interests"):
+        # Validate that required inputs are provided before proceeding
+        if not origin or not destination or not travel_dates:
+            st.error("Please fill in all required fields (origin, destination, and travel dates) to proceed.")
+        else:
+            # Generate dynamic interests list based on destination
+            destination_interests = {
+                "New York": ["Statue of Liberty", "Central Park", "Broadway Shows", "Times Square", "Brooklyn Bridge",
+                             "Museum of Modern Art", "Empire State Building", "High Line", "Fifth Avenue", "Rockefeller Center"],
+                "Paris": ["Eiffel Tower", "Louvre Museum", "Notre-Dame Cathedral", "Champs-Élysées", "Montmartre",
+                          "Versailles", "Seine River Cruise", "Disneyland Paris", "Arc de Triomphe", "Latin Quarter"],
+                "Tokyo": ["Shinjuku Gyoen", "Tokyo Tower", "Akihabara", "Meiji Shrine", "Senso-ji Temple",
+                          "Odaiba", "Ginza", "Tsukiji Market", "Harajuku", "Roppongi"],
+            }
+            top_interests = destination_interests.get(destination.title(), ["Beach", "Hiking", "Museums", "Local Food",
+                                                                            "Shopping", "Parks", "Cultural Sites", 
+                                                                            "Water Sports", "Music Events", "Nightlife"])
+            
+            # Update session state with generated interests list
+            st.session_state.destination_interests = top_interests
+
+    # Display the dynamic interest selection list
+    if st.session_state.destination_interests:
         st.session_state.interests = st.multiselect(
             "Select your interests",
             st.session_state.destination_interests + ["Other"],
             default=st.session_state.interests
         )
 
-    # Flight search functionality
-    if origin and destination and travel_dates:
-        st.subheader("Flight Search Results")
-        departure_date = travel_dates[0].strftime("%Y-%m-%d")
-        flight_prices = fetch_flight_prices(origin, destination, departure_date)
+    # Step 2: Final button to generate itinerary
+    if st.session_state.interests and st.button("Generate Travel Itinerary"):
+        interests = st.session_state.get("interests", [])
+        if "Other" in interests:
+            custom_interest = st.text_input("Enter your custom interest(s)")
+            if custom_interest:
+                interests.append(custom_interest)
+
+        # Fetch flight prices
+        flight_prices = fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
+
+        # Generate itinerary
+        itinerary = generate_itinerary_with_chatgpt(
+            origin, destination, travel_dates, interests, budget
+        )
+
+        # Display results
+        st.subheader("Estimated Flight Prices:")
         st.write(flight_prices)
 
-    # Generate itinerary
-    if st.session_state.interests and st.button("Generate Travel Itinerary"):
-        itinerary = generate_itinerary_with_chatgpt(
-            origin, destination, travel_dates, st.session_state.interests, budget
-        )
         st.subheader("Generated Itinerary:")
         st.write(itinerary)
 
-        # Geocode and map visualization
-        activity_df = extract_activities_with_coordinates(itinerary)
-        if not activity_df.empty:
-            st.subheader("Map of Activities:")
-            st.map(activity_df[['lat', 'lon']])
-        else:
-            st.warning("No coordinates found. Attempting to geocode activities.")
-            geocoded_df = geocode_places([f"{place}, {city}" for place, city in activity_df[["Place", "City"]].values])
-            if not geocoded_df.empty:
-                st.map(geocoded_df[['lat', 'lon']])
-
 # Post-travel Branch
-elif st.session_state.active_branch == "Post-travel":
+elif branch == "Post-travel":
     st.header("Post-travel: Data Classification and Summary")
     uploaded_file = st.file_uploader("Upload your travel data (Excel file)", type=["xlsx"])
-    if uploaded_file:
+    if uploaded_file is not None:
         df = pd.read_excel(uploaded_file)
         st.subheader("Data Preview:")
         st.write(df.head())
 
-# Back Button
-if st.session_state.active_branch:
-    if st.button("Back to Home"):
-        st.session_state.active_branch = None
+# OCR Receipts Branch
+elif branch == "OCR Receipts":
+    st.header("OCR Receipts: Extract Data from Receipts")
+    uploaded_receipt = st.file_uploader("Upload your receipt image (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
+    if uploaded_receipt:
+        receipt_image = Image.open(uploaded_receipt)
+        receipt_data = preprocess_and_extract(receipt_image)
+        if receipt_data:
+            st.subheader("Extracted Data:")
+            st.write(receipt_data)
