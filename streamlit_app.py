@@ -1,3 +1,104 @@
+import os
+from langchain_core.tools import Tool
+from langchain_community.utilities import GoogleSerperAPIWrapper
+import openai
+import streamlit as st
+
+# Load API keys
+os.environ["OPENAI_API_KEY"] = st.secrets["MyOpenAIKey"]
+os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
+
+# Initialize the Google Serper API Wrapper
+search = GoogleSerperAPIWrapper()
+serper_tool = Tool(
+    name="GoogleSerper",
+    func=search.run,
+    description="Useful for when you need to look up some information on the internet.",
+)
+
+# Function to query ChatGPT for better formatting
+def format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date):
+    try:
+        prompt = f"""
+        You are a helpful assistant. I received the following raw flight information for a query:
+        'Flights from {origin} to {destination} on {departure_date}':
+        {raw_response}
+
+        Please clean and reformat this information into a professional, readable format. Use bullet points,
+        categories, or a table wherever appropriate to make it easy to understand. Also include key highlights
+        like the cheapest fare, airlines, and travel dates. Ensure that any missing or irrelevant text is ignored.
+        """
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message["content"]
+    except Exception as e:
+        return f"An error occurred while formatting the response: {e}"
+
+# Function to fetch flight prices and format them with ChatGPT
+def fetch_flight_prices(origin, destination, departure_date):
+    try:
+        query = f"flights from {origin} to {destination} on {departure_date}"
+        raw_response = serper_tool.func(query)
+        formatted_response = format_flight_prices_with_chatgpt(
+            raw_response, origin, destination, departure_date
+        )
+        return formatted_response
+    except Exception as e:
+        return f"An error occurred while fetching or formatting flight prices: {e}"
+
+# Function to generate a detailed itinerary using ChatGPT
+def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget):
+    try:
+        prompt_template = """
+        You are a travel assistant. Create a detailed itinerary for a trip from {origin} to {destination}. 
+        The user is interested in {interests}. The budget level is {budget}. 
+        The travel dates are {travel_dates}. For each activity, include the expected expense in both local currency 
+        and USD. Provide a total expense at the end.
+        """
+        prompt = prompt_template.format(
+            origin=origin,
+            destination=destination,
+            interests=", ".join(interests) if interests else "general activities",
+            budget=budget,
+            travel_dates=travel_dates
+        )
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message["content"]
+    except Exception as e:
+        return f"An error occurred while generating the itinerary: {e}"
+
+# Streamlit UI configuration
+st.set_page_config(
+    page_title="Travel Planning Assistant",
+    page_icon="🛫",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+st.header("Travel Planning Assistant 🛫")
+
+# Sidebar Navigation
+st.sidebar.title("Navigation")
+branch = st.sidebar.radio("Select a branch", ["Plan Your Travel", "Post-travel", "OCR Receipts"])
+
+# Plan Your Travel Branch
+if branch == "Plan Your Travel":
+    st.header("Plan Your Travel 🗺️")
+
+    # Step 1: Collect basic trip details
+    origin = st.text_input("Flying From (Origin Airport/City)")
+    destination = st.text_input("Flying To (Destination Airport/City)")
+    travel_dates = st.date_input("Select your travel dates", [])
+    budget = st.selectbox(
+        "Select your budget level",
+        ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"]
+    )
+
     # Initialize session state for interests and destination interests
     if "interests" not in st.session_state:
         st.session_state.interests = []
