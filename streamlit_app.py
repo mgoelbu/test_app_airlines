@@ -20,26 +20,6 @@ serper_tool = Tool(
     description="Useful for when you need to look up some information on the internet.",
 )
 
-# Function to format flight price data with ChatGPT
-def format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date):
-    try:
-        prompt = f"""
-        You are a helpful assistant. I received the following raw flight information for a query:
-        'Flights from {origin} to {destination} on {departure_date}':
-        {raw_response}
-
-        Please clean and reformat this information into a professional, readable format. Use bullet points,
-        categories, or a table wherever appropriate to make it easy to understand. Also include key highlights
-        like the cheapest fare, airlines, and travel dates. Ensure that any missing or irrelevant text is ignored.
-        """
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message["content"]
-    except Exception as e:
-        return f"An error occurred while formatting the response: {e}"
-
 # Function to dynamically fetch interest suggestions using ChatGPT
 def fetch_interests_with_chatgpt(destination):
     try:
@@ -65,6 +45,26 @@ def fetch_flight_prices(origin, destination, departure_date):
         return format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date)
     except Exception as e:
         return f"An error occurred while fetching flight prices: {e}"
+
+# Function to format flight price data with ChatGPT
+def format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date):
+    try:
+        prompt = f"""
+        You are a helpful assistant. I received the following raw flight information for a query:
+        'Flights from {origin} to {destination} on {departure_date}':
+        {raw_response}
+
+        Please clean and reformat this information into a professional, readable format. Use bullet points,
+        categories, or a table wherever appropriate to make it easy to understand. Also include key highlights
+        like the cheapest fare, airlines, and travel dates. Ensure that any missing or irrelevant text is ignored.
+        """
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message["content"]
+    except Exception as e:
+        return f"An error occurred while formatting the response: {e}"
 
 # Function to generate a detailed itinerary with ChatGPT
 def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget):
@@ -130,6 +130,8 @@ if "active_branch" not in st.session_state:
     st.session_state.active_branch = None
 if "interests" not in st.session_state:
     st.session_state.interests = []
+if "destination_interests" not in st.session_state:
+    st.session_state.destination_interests = []
 
 # Navigation
 st.header("Travel Planning Assistant 🛫")
@@ -160,6 +162,13 @@ if st.session_state.active_branch == "Pre-travel":
             st.session_state.destination_interests + ["Other"],
             default=st.session_state.interests
         )
+
+    # Flight search functionality
+    if origin and destination and travel_dates:
+        st.subheader("Flight Search Results")
+        departure_date = travel_dates[0].strftime("%Y-%m-%d")
+        flight_prices = fetch_flight_prices(origin, destination, departure_date)
+        st.write(flight_prices)
 
     # Generate itinerary
     if st.session_state.interests and st.button("Generate Travel Itinerary"):
