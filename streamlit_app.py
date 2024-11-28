@@ -19,7 +19,6 @@ serper_tool = Tool(
 # Function to query ChatGPT for better formatting
 def format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date):
     try:
-        # Prompt engineering for clean, readable output
         prompt = f"""
         You are a helpful assistant. I received the following raw flight information for a query:
         'Flights from {origin} to {destination} on {departure_date}':
@@ -30,7 +29,7 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
         like the cheapest fare, airlines, and travel dates. Ensure that any missing or irrelevant text is ignored.
         """
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model="gpt-4",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message["content"]
@@ -40,11 +39,8 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
 # Function to fetch flight prices and format them with ChatGPT
 def fetch_flight_prices(origin, destination, departure_date):
     try:
-        # Query flight prices using Google Serper
         query = f"flights from {origin} to {destination} on {departure_date}"
-        raw_response = serper_tool.func(query)  # Get raw output from Serper tool
-
-        # Pass raw output to ChatGPT for formatting
+        raw_response = serper_tool.func(query)
         formatted_response = format_flight_prices_with_chatgpt(
             raw_response, origin, destination, departure_date
         )
@@ -69,7 +65,7 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
             travel_dates=travel_dates
         )
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model="gpt-4",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message["content"]
@@ -103,6 +99,10 @@ if branch == "Plan Your Travel":
         ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"]
     )
 
+    # Initialize session state for interests
+    if "interests" not in st.session_state:
+        st.session_state.interests = []
+
     if st.button("Set Interests"):
         # Validate that required inputs are provided before proceeding
         if not origin or not destination or not travel_dates:
@@ -121,15 +121,15 @@ if branch == "Plan Your Travel":
                                                                             "Shopping", "Parks", "Cultural Sites", 
                                                                             "Water Sports", "Music Events", "Nightlife"])
             
-            # Dynamic interest selection
+            # Update session state with selected interests
             st.session_state.interests = st.multiselect(
                 "Select your interests",
                 top_interests + ["Other"],  # Include "Other" option
-                default=None
+                default=st.session_state.interests
             )
 
     # Step 2: Final button to generate itinerary
-    if "interests" in st.session_state and st.button("Generate Travel Itinerary"):
+    if st.session_state.interests and st.button("Generate Travel Itinerary"):
         interests = st.session_state.get("interests", [])
         if "Other" in interests:
             custom_interest = st.text_input("Enter your custom interest(s)")
