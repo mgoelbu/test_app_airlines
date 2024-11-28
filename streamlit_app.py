@@ -30,7 +30,7 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
         like the cheapest fare, airlines, and travel dates. Ensure that any missing or irrelevant text is ignored.
         """
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model="gpt-4",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message["content"]
@@ -52,68 +52,9 @@ def fetch_flight_prices(origin, destination, departure_date):
     except Exception as e:
         return f"An error occurred while fetching or formatting flight prices: {e}"
 
-# Streamlit UI configuration
-st.set_page_config(
-    page_title="Travel Planning Assistant",
-    page_icon="🛫",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-
-st.header("Travel Planning Assistant 🛫")
-
-# Sidebar Navigation
-st.sidebar.title("Navigation")
-branch = st.sidebar.radio("Select a branch", ["Generate Blogs", "Plan Your Travel", "Post-travel", "OCR Receipts"])
-
-# Plan Your Travel Branch
-if branch == "Plan Your Travel":
-    st.header("Plan Your Travel 🗺️")
-
-    # User inputs
-    origin = st.text_input("Flying From (Origin Airport/City)")
-    destination = st.text_input("Flying To (Destination Airport/City)")
-    travel_dates = st.date_input("Select your travel dates", [])
-
-    # Fetch flight prices
-    if origin and destination and travel_dates:
-        flight_prices = fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
-        st.write("**Estimated Flight Prices:**")
-        st.write(flight_prices)
-
-    # Dynamic interests dropdown based on the destination
-    if destination:
-        destination_interests = {
-            "New York": ["Statue of Liberty", "Central Park", "Broadway Shows", "Times Square", "Brooklyn Bridge",
-                         "Museum of Modern Art", "Empire State Building", "High Line", "Fifth Avenue", "Rockefeller Center"],
-            "Paris": ["Eiffel Tower", "Louvre Museum", "Notre-Dame Cathedral", "Champs-Élysées", "Montmartre",
-                      "Versailles", "Seine River Cruise", "Disneyland Paris", "Arc de Triomphe", "Latin Quarter"],
-            "Tokyo": ["Shinjuku Gyoen", "Tokyo Tower", "Akihabara", "Meiji Shrine", "Senso-ji Temple",
-                      "Odaiba", "Ginza", "Tsukiji Market", "Harajuku", "Roppongi"],
-        }
-        top_interests = destination_interests.get(destination.title(), ["Beach", "Hiking", "Museums", "Local Food",
-                                                                        "Shopping", "Parks", "Cultural Sites", 
-                                                                        "Water Sports", "Music Events", "Nightlife"])
-        interests = st.multiselect(
-            "Select your interests",
-            top_interests + ["Other"],  # Include "Other" option
-            default=None
-        )
-        if "Other" in interests:
-            custom_interest = st.text_input("Enter your custom interest(s)")
-            if custom_interest:
-                interests.append(custom_interest)
-
-    # Budget categories
-    budget = st.selectbox(
-        "Select your budget level",
-        ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"]
-    )
-
-    # Generate itinerary button
-    generate_itinerary = st.button("Generate Itinerary")
-
-    if generate_itinerary:
+# Function to generate a detailed itinerary using ChatGPT
+def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget):
+    try:
         prompt_template = """
         You are a travel assistant. Create a detailed itinerary for a trip from {origin} to {destination}. 
         The user is interested in {interests}. The budget level is {budget}. 
@@ -127,16 +68,91 @@ if branch == "Plan Your Travel":
             budget=budget,
             travel_dates=travel_dates
         )
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}]
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message["content"]
+    except Exception as e:
+        return f"An error occurred while generating the itinerary: {e}"
+
+# Streamlit UI configuration
+st.set_page_config(
+    page_title="Travel Planning Assistant",
+    page_icon="🛫",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+st.header("Travel Planning Assistant 🛫")
+
+# Sidebar Navigation
+st.sidebar.title("Navigation")
+branch = st.sidebar.radio("Select a branch", ["Plan Your Travel", "Post-travel", "OCR Receipts"])
+
+# Plan Your Travel Branch
+if branch == "Plan Your Travel":
+    st.header("Plan Your Travel 🗺️")
+
+    # User inputs for trip details
+    with st.form("travel_form"):
+        origin = st.text_input("Flying From (Origin Airport/City)")
+        destination = st.text_input("Flying To (Destination Airport/City)")
+        travel_dates = st.date_input("Select your travel dates", [])
+        
+        # Interests based on destination
+        if destination:
+            destination_interests = {
+                "New York": ["Statue of Liberty", "Central Park", "Broadway Shows", "Times Square", "Brooklyn Bridge",
+                             "Museum of Modern Art", "Empire State Building", "High Line", "Fifth Avenue", "Rockefeller Center"],
+                "Paris": ["Eiffel Tower", "Louvre Museum", "Notre-Dame Cathedral", "Champs-Élysées", "Montmartre",
+                          "Versailles", "Seine River Cruise", "Disneyland Paris", "Arc de Triomphe", "Latin Quarter"],
+                "Tokyo": ["Shinjuku Gyoen", "Tokyo Tower", "Akihabara", "Meiji Shrine", "Senso-ji Temple",
+                          "Odaiba", "Ginza", "Tsukiji Market", "Harajuku", "Roppongi"],
+            }
+            top_interests = destination_interests.get(destination.title(), ["Beach", "Hiking", "Museums", "Local Food",
+                                                                            "Shopping", "Parks", "Cultural Sites", 
+                                                                            "Water Sports", "Music Events", "Nightlife"])
+            interests = st.multiselect(
+                "Select your interests",
+                top_interests + ["Other"],  # Include "Other" option
+                default=None
             )
-            itinerary = response.choices[0].message["content"]
+            if "Other" in interests:
+                custom_interest = st.text_input("Enter your custom interest(s)")
+                if custom_interest:
+                    interests.append(custom_interest)
+        else:
+            interests = []
+
+        # Budget categories
+        budget = st.selectbox(
+            "Select your budget level",
+            ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"]
+        )
+
+        # Submit button for the form
+        submitted = st.form_submit_button("Generate Travel Itinerary")
+
+    if submitted:
+        # Ensure all necessary details are provided
+        if not origin or not destination or not travel_dates:
+            st.error("Please fill in all required fields (origin, destination, and travel dates) to proceed.")
+        else:
+            # Fetch flight prices
+            flight_prices = fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
+
+            # Generate itinerary
+            itinerary = generate_itinerary_with_chatgpt(
+                origin, destination, travel_dates, interests, budget
+            )
+
+            # Display results
+            st.subheader("Estimated Flight Prices:")
+            st.write(flight_prices)
+
             st.subheader("Generated Itinerary:")
             st.write(itinerary)
-        except Exception as e:
-            st.error(f"An error occurred while generating the itinerary: {e}")
 
 # Post-travel Branch
 elif branch == "Post-travel":
@@ -146,6 +162,8 @@ elif branch == "Post-travel":
         df = pd.read_excel(uploaded_file)
         st.subheader("Data Preview:")
         st.write(df.head())
+
+# OCR Receipts Branch
 elif branch == "OCR Receipts":
     st.header("OCR Receipts: Extract Data from Receipts")
     uploaded_receipt = st.file_uploader("Upload your receipt image (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
