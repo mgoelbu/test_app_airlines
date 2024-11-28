@@ -33,12 +33,29 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
         like the cheapest fare, airlines, and travel dates. Ensure that any missing or irrelevant text is ignored.
         """
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message["content"]
     except Exception as e:
         return f"An error occurred while formatting the response: {e}"
+
+# Function to dynamically fetch interest suggestions using ChatGPT
+def fetch_interests_with_chatgpt(destination):
+    try:
+        prompt = f"""
+        You are a travel assistant. Suggest the top 10 points of interest or activities for tourists in {destination}.
+        Ensure the suggestions cover a variety of activities such as cultural sites, natural attractions, local experiences, 
+        and unique landmarks.
+        """
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        interests = response.choices[0].message["content"].split("\n")
+        return [interest.strip("- ") for interest in interests if interest]
+    except Exception as e:
+        return ["General Activities", "Other"]
 
 # Function to fetch flight prices using Google Serper
 def fetch_flight_prices(origin, destination, departure_date):
@@ -69,7 +86,7 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
             travel_dates=travel_dates
         )
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message["content"]
@@ -108,9 +125,11 @@ def geocode_places(places, context=""):
             st.warning(f"Geocoding timed out for {place}. Skipping.")
     return pd.DataFrame(geocoded_data)
 
-# Initialize session state for navigation
+# Initialize session state for navigation and interests
 if "active_branch" not in st.session_state:
     st.session_state.active_branch = None
+if "interests" not in st.session_state:
+    st.session_state.interests = []
 
 # Navigation
 st.header("Travel Planning Assistant 🛫")
@@ -133,27 +152,14 @@ if st.session_state.active_branch == "Pre-travel":
     travel_dates = st.date_input("Select your travel dates", [])
     budget = st.selectbox("Select your budget level", ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"])
 
-    # Interest selection
-    if "interests" not in st.session_state:
-        st.session_state.interests = []
-    if "destination_interests" not in st.session_state:
-        st.session_state.destination_interests = []
-
-    if st.button("Set Interests"):
-        if not origin or not destination or not travel_dates:
-            st.error("Please fill in all required fields.")
-        else:
-            destination_interests = {
-                "New York": ["Statue of Liberty", "Central Park", "Times Square"],
-                "Paris": ["Eiffel Tower", "Louvre Museum", "Notre-Dame"],
-                "Tokyo": ["Shinjuku Gyoen", "Tokyo Tower", "Akihabara"]
-            }
-            st.session_state.destination_interests = destination_interests.get(destination.title(), ["General Activities"])
-            st.session_state.interests = st.multiselect(
-                "Select your interests",
-                st.session_state.destination_interests + ["Other"],
-                default=st.session_state.interests
-            )
+    # Dynamic interest suggestions
+    if destination and st.button("Set Interests"):
+        st.session_state.destination_interests = fetch_interests_with_chatgpt(destination)
+        st.session_state.interests = st.multiselect(
+            "Select your interests",
+            st.session_state.destination_interests + ["Other"],
+            default=st.session_state.interests
+        )
 
     # Generate itinerary
     if st.session_state.interests and st.button("Generate Travel Itinerary"):
@@ -169,10 +175,10 @@ if st.session_state.active_branch == "Pre-travel":
             st.subheader("Map of Activities:")
             st.map(activity_df[['lat', 'lon']])
         else:
-            places = [f"{place}, {city}" for place, city in activity_df[["Place", "City"]].values]
-            fallback_df = geocode_places(places)
-            if not fallback_df.empty:
-                st.map(fallback_df[['lat', 'lon']])
+            st.warning("No coordinates found. Attempting to geocode activities.")
+            geocoded_df = geocode_places([f"{place}, {city}" for place, city in activity_df[["Place", "City"]].values])
+            if not geocoded_df.empty:
+                st.map(geocoded_df[['lat', 'lon']])
 
 # Post-travel Branch
 elif st.session_state.active_branch == "Post-travel":
