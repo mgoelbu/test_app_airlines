@@ -54,8 +54,8 @@ def fetch_interests_with_chatgpt(destination):
         )
         interests = response.choices[0].message["content"].split("\n")
         return [interest.strip("- ") for interest in interests if interest]
-    except Exception as e:
-        return ["General Activities", "Other"]
+    # except Exception as e:
+    #     return ["General Activities", "Other"]
 
 # Function to fetch flight prices using Google Serper
 def fetch_flight_prices(origin, destination, departure_date):
@@ -81,7 +81,8 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
         prompt = prompt_template.format(
             origin=origin,
             destination=destination,
-            interests=", ".join(interests) if interests else "general activities",
+            interests=", ".join(interests),
+            # if interests else "general activities",
             budget=budget,
             travel_dates=travel_dates
         )
