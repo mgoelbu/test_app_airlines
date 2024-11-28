@@ -7,8 +7,10 @@ from PIL import Image, ImageFilter
 import re
 import os
 import requests
+from langchain_core.tools import Tool
+from langchain_community.utilities import GoogleSerperAPIWrapper
 
-### Load your API Key
+# Load your API Key
 my_secret_key = st.secrets['MyOpenAIKey']
 os.environ["OPENAI_API_KEY"] = my_secret_key
 
@@ -18,53 +20,23 @@ llm = OpenAI(
     openai_api_key=my_secret_key
 )
 
-# Function to get response from GPT-4
-def get_gpt4_response(input_text, no_words, blog_style):
-    try:
-        # Construct the prompt
-        prompt = f"Write a blog for a {blog_style} job profile on the topic '{input_text}'. Limit the content to approximately {no_words} words."
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",  # Ensure this is a valid model
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message["content"]
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
-        return None
+# Setting up Google Serper API Wrapper
+os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]  # Replace with your Serper API key
+search = GoogleSerperAPIWrapper()
+serper_tool = Tool(
+    name="GoogleSerper",
+    func=search.run,
+    description="Useful for when you need to look up some information on the internet.",
+)
 
-# Function to fetch flight prices using Serper.dev
+# Function to fetch flight prices using Google Serper API Wrapper
 def fetch_flight_prices(origin, destination, departure_date):
     try:
-        serper_api_key = st.secrets["SerperAPIKey"]  # Replace with your Serper.dev API key
-        headers = {
-            "X-API-KEY": serper_api_key,
-            "Content-Type": "application/json"
-        }
         query = f"flights from {origin} to {destination} on {departure_date}"
-        payload = {"q": query}  # Construct the payload
-
-        # API request
-        response = requests.post(
-            "https://google.serper.dev/search",
-            headers=headers,
-            json=payload
-        )
-
-        # Debugging: Print the entire response
-        print("Full Response from Serper.dev API:")
-        print(response.json())  # Prints the full response to help debug issues
-
-        # Raise an error for bad HTTP responses
-        response.raise_for_status()
-
-        # Parse and return the relevant snippet from the API response
-        data = response.json()
-        snippet = data.get("answerBox", {}).get("snippet", "No flight prices found.")
-        return snippet
-    except requests.exceptions.RequestException as e:
-        return f"HTTP Request failed: {e}"
-    except ValueError:
-        return "Failed to parse the response from the Serper.dev API."
+        flight_prices = serper_tool.func(query)  # Using GoogleSerperAPIWrapper to fetch data
+        return flight_prices
+    except Exception as e:
+        return f"An error occurred while fetching flight prices: {e}"
 
 # Function for OCR extraction
 def preprocess_and_extract(image):
