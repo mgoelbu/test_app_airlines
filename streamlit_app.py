@@ -1,6 +1,3 @@
-#my_secret_key = st.secrets['IS883-OpenAIKey-RV']
-#openai.api_key = my_secret_key
-
 import os
 from langchain_core.tools import Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
@@ -9,11 +6,8 @@ import streamlit as st
 
 # Load API keys
 my_secret_key = st.secrets['MyOpenAIKey']
-
 openai.api_key = my_secret_key
-#os.environ["OPENAI_API_KEY"] = st.secrets["MyOpenAIKey"]
 os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
-
 
 # Initialize the Google Serper API Wrapper
 search = GoogleSerperAPIWrapper()
@@ -89,97 +83,77 @@ st.set_page_config(
 
 st.header("Travel Planning Assistant 🛫")
 
-# Sidebar Navigation
-st.sidebar.title("Navigation")
-branch = st.sidebar.radio("Select a branch", ["Plan Your Travel", "Post-travel", "OCR Receipts"])
+# Initialize session state variables
+if "branch" not in st.session_state:
+    st.session_state.branch = None
+if "origin" not in st.session_state:
+    st.session_state.origin = ""
+if "destination" not in st.session_state:
+    st.session_state.destination = ""
+if "travel_dates" not in st.session_state:
+    st.session_state.travel_dates = []
+if "budget" not in st.session_state:
+    st.session_state.budget = ""
+if "interests" not in st.session_state:
+    st.session_state.interests = []
 
-# Plan Your Travel Branch
-if branch == "Plan Your Travel":
+# Homepage Navigation
+if st.session_state.branch is None:
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Pre-travel"):
+            st.session_state.branch = "Pre-travel"
+    with col2:
+        if st.button("Post-travel"):
+            st.session_state.branch = "Post-travel"
+
+# Pre-travel Branch
+if st.session_state.branch == "Pre-travel":
     st.header("Plan Your Travel 🗺️")
-
-    # Step 1: Collect basic trip details
-    origin = st.text_input("Flying From (Origin Airport/City)")
-    destination = st.text_input("Flying To (Destination Airport/City)")
-    travel_dates = st.date_input("Select your travel dates", [])
-    budget = st.selectbox(
+    st.session_state.origin = st.text_input("Flying From (Origin Airport/City)", value=st.session_state.origin)
+    st.session_state.destination = st.text_input("Flying To (Destination Airport/City)", value=st.session_state.destination)
+    st.session_state.travel_dates = st.date_input("Select your travel dates", value=st.session_state.travel_dates)
+    st.session_state.budget = st.selectbox(
         "Select your budget level",
-        ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"]
+        ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"],
+        index=["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"].index(st.session_state.budget)
+        if st.session_state.budget else 0
     )
 
-    # Initialize session state for interests and destination interests
-    if "interests" not in st.session_state:
-        st.session_state.interests = []
-    if "destination_interests" not in st.session_state:
-        st.session_state.destination_interests = []
+    interests = st.multiselect(
+        "Select your interests",
+        ["Beach", "Hiking", "Museums", "Local Food", "Shopping", "Parks", "Cultural Sites", "Nightlife"],
+        default=st.session_state.interests
+    )
+    st.session_state.interests = interests
 
-    if st.button("Set Interests"):
-        # Validate that required inputs are provided before proceeding
-        if not origin or not destination or not travel_dates:
-            st.error("Please fill in all required fields (origin, destination, and travel dates) to proceed.")
+    if st.button("Generate Travel Itinerary"):
+        if not st.session_state.origin or not st.session_state.destination or not st.session_state.travel_dates:
+            st.error("Please fill in all required fields (origin, destination, and travel dates).")
         else:
-            # Generate dynamic interests list based on destination
-            destination_interests = {
-                "New York": ["Statue of Liberty", "Central Park", "Broadway Shows", "Times Square", "Brooklyn Bridge",
-                             "Museum of Modern Art", "Empire State Building", "High Line", "Fifth Avenue", "Rockefeller Center"],
-                "Paris": ["Eiffel Tower", "Louvre Museum", "Notre-Dame Cathedral", "Champs-Élysées", "Montmartre",
-                          "Versailles", "Seine River Cruise", "Disneyland Paris", "Arc de Triomphe", "Latin Quarter"],
-                "Tokyo": ["Shinjuku Gyoen", "Tokyo Tower", "Akihabara", "Meiji Shrine", "Senso-ji Temple",
-                          "Odaiba", "Ginza", "Tsukiji Market", "Harajuku", "Roppongi"],
-            }
-            top_interests = destination_interests.get(destination.title(), ["Beach", "Hiking", "Museums", "Local Food",
-                                                                            "Shopping", "Parks", "Cultural Sites", 
-                                                                            "Water Sports", "Music Events", "Nightlife"])
-            
-            # Update session state with generated interests list
-            st.session_state.destination_interests = top_interests
+            flight_prices = fetch_flight_prices(
+                st.session_state.origin,
+                st.session_state.destination,
+                st.session_state.travel_dates[0].strftime("%Y-%m-%d")
+            )
+            itinerary = generate_itinerary_with_chatgpt(
+                st.session_state.origin,
+                st.session_state.destination,
+                st.session_state.travel_dates,
+                st.session_state.interests,
+                st.session_state.budget
+            )
 
-    # Display the dynamic interest selection list
-    if st.session_state.destination_interests:
-        st.session_state.interests = st.multiselect(
-            "Select your interests",
-            st.session_state.destination_interests + ["Other"],
-            default=st.session_state.interests
-        )
-
-    # Step 2: Final button to generate itinerary
-    if st.session_state.interests and st.button("Generate Travel Itinerary"):
-        interests = st.session_state.get("interests", [])
-        if "Other" in interests:
-            custom_interest = st.text_input("Enter your custom interest(s)")
-            if custom_interest:
-                interests.append(custom_interest)
-
-        # Fetch flight prices
-        flight_prices = fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
-
-        # Generate itinerary
-        itinerary = generate_itinerary_with_chatgpt(
-            origin, destination, travel_dates, interests, budget
-        )
-
-        # Display results
-        st.subheader("Estimated Flight Prices:")
-        st.write(flight_prices)
-
-        st.subheader("Generated Itinerary:")
-        st.write(itinerary)
+            with st.expander("Flight Prices", expanded=True):
+                st.write(flight_prices)
+            with st.expander("Itinerary", expanded=True):
+                st.write(itinerary)
 
 # Post-travel Branch
-elif branch == "Post-travel":
+if st.session_state.branch == "Post-travel":
     st.header("Post-travel: Data Classification and Summary")
     uploaded_file = st.file_uploader("Upload your travel data (Excel file)", type=["xlsx"])
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file)
         st.subheader("Data Preview:")
         st.write(df.head())
-
-# OCR Receipts Branch
-elif branch == "OCR Receipts":
-    st.header("OCR Receipts: Extract Data from Receipts")
-    uploaded_receipt = st.file_uploader("Upload your receipt image (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
-    if uploaded_receipt:
-        receipt_image = Image.open(uploaded_receipt)
-        receipt_data = preprocess_and_extract(receipt_image)
-        if receipt_data:
-            st.subheader("Extracted Data:")
-            st.write(receipt_data)
