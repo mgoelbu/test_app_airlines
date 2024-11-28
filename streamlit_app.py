@@ -1,27 +1,14 @@
-import streamlit as st
-import openai
-import pandas as pd
-from langchain.llms import OpenAI
-import pytesseract
-from PIL import Image, ImageFilter
-import re
 import os
-import requests
 from langchain_core.tools import Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
+import openai
+import streamlit as st
 
-# Load your API Key
-my_secret_key = st.secrets['MyOpenAIKey']
-os.environ["OPENAI_API_KEY"] = my_secret_key
+# Load API keys
+os.environ["OPENAI_API_KEY"] = st.secrets["MyOpenAIKey"]
+os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
 
-llm = OpenAI(
-    model_name="gpt-4o-mini",  # Replace with a valid OpenAI model
-    temperature=0.7,
-    openai_api_key=my_secret_key
-)
-
-# Setting up Google Serper API Wrapper
-os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]  # Replace with your Serper API key
+# Initialize the Google Serper API Wrapper
 search = GoogleSerperAPIWrapper()
 serper_tool = Tool(
     name="GoogleSerper",
@@ -29,41 +16,41 @@ serper_tool = Tool(
     description="Useful for when you need to look up some information on the internet.",
 )
 
-# Function to fetch flight prices using Google Serper API Wrapper
+# Function to query ChatGPT for better formatting
+def format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date):
+    try:
+        # Prompt engineering for clean, readable output
+        prompt = f"""
+        You are a helpful assistant. I received the following raw flight information for a query:
+        'Flights from {origin} to {destination} on {departure_date}':
+        {raw_response}
+
+        Please clean and reformat this information into a professional, readable format. Use bullet points,
+        categories, or a table wherever appropriate to make it easy to understand. Also include key highlights
+        like the cheapest fare, airlines, and travel dates. Ensure that any missing or irrelevant text is ignored.
+        """
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message["content"]
+    except Exception as e:
+        return f"An error occurred while formatting the response: {e}"
+
+# Function to fetch flight prices and format them with ChatGPT
 def fetch_flight_prices(origin, destination, departure_date):
     try:
+        # Query flight prices using Google Serper
         query = f"flights from {origin} to {destination} on {departure_date}"
-        flight_prices = serper_tool.func(query)  # Using GoogleSerperAPIWrapper to fetch data
-        return flight_prices
-    except Exception as e:
-        return f"An error occurred while fetching flight prices: {e}"
+        raw_response = serper_tool.func(query)  # Get raw output from Serper tool
 
-# Function for OCR extraction
-def preprocess_and_extract(image):
-    try:
-        # Convert image to grayscale and sharpen
-        image = image.convert("L")  # Convert to grayscale
-        image = image.filter(ImageFilter.SHARPEN)  # Sharpen the image
-        
-        # OCR with custom configuration
-        custom_config = r'--psm 6'  # Assume a block of text
-        raw_text = pytesseract.image_to_string(image, config=custom_config)
-        
-        # Extract details using regex
-        amount = re.search(r'(\d+\.\d{2})', raw_text)  # Match amounts like 19.70
-        date = re.search(r'\d{2}/\d{2}/\d{4}', raw_text)  # Match dates like MM/DD/YYYY
-        type_keywords = ["food", "transport", "accommodation", "entertainment", "miscellaneous"]
-        category = next((kw for kw in type_keywords if kw.lower() in raw_text.lower()), "Unknown")
-        
-        return {
-            "Raw Text": raw_text,
-            "Amount": float(amount.group(1)) if amount else None,
-            "Date": date.group(0) if date else None,
-            "Type": category
-        }
+        # Pass raw output to ChatGPT for formatting
+        formatted_response = format_flight_prices_with_chatgpt(
+            raw_response, origin, destination, departure_date
+        )
+        return formatted_response
     except Exception as e:
-        st.error(f"Error during OCR processing: {e}")
-        return None
+        return f"An error occurred while fetching or formatting flight prices: {e}"
 
 # Streamlit UI configuration
 st.set_page_config(
@@ -79,29 +66,8 @@ st.header("Travel Planning Assistant 🛫")
 st.sidebar.title("Navigation")
 branch = st.sidebar.radio("Select a branch", ["Generate Blogs", "Plan Your Travel", "Post-travel", "OCR Receipts"])
 
-if branch == "Generate Blogs":
-    st.header("Generate Blogs 🛫")
-
-    # User inputs
-    input_text = st.text_input("Enter the Blog Topic")
-    col1, col2 = st.columns([5, 5])
-
-    with col1:
-        no_words = st.text_input("No of Words")
-    with col2:
-        blog_style = st.selectbox("Writing the blog for", ("Researchers", "Data Scientist", "Common People"), index=0)
-
-    # Generate blog button
-    submit = st.button("Generate")
-
-    # Display the generated blog content
-    if submit:
-        blog_content = get_gpt4_response(input_text, no_words, blog_style)
-        if blog_content:
-            st.write(blog_content)
-
 # Plan Your Travel Branch
-elif branch == "Plan Your Travel":
+if branch == "Plan Your Travel":
     st.header("Plan Your Travel 🗺️")
 
     # User inputs
