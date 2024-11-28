@@ -30,7 +30,7 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
         like the cheapest fare, airlines, and travel dates. Ensure that any missing or irrelevant text is ignored.
         """
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message["content"]
