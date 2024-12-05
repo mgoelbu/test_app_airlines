@@ -93,47 +93,14 @@ def compute_execution_time(func, *args, **kwargs):
     return result, execution_time
 
 def compute_perplexity(text):
-    from transformers import GPT2Tokenizer, GPT2LMHeadModel
-    import torch
-
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
     model = GPT2LMHeadModel.from_pretrained("gpt2")
-    model.eval()  # Ensure the model is in evaluation mode
-
-    # Validate input text
-    if not text or not isinstance(text, str):
-        return "Error: Input text is empty or invalid."
-
-    # Tokenize the input text and add padding if necessary
-    try:
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512, padding=True)
-
-        with torch.no_grad():
-            # Use input_ids as both inputs and labels
-            outputs = model(**inputs, labels=inputs["input_ids"])
-            loss = outputs.loss
-            perplexity = torch.exp(loss)
-            return perplexity.item()
-    except Exception as e:
-        return f"Error in perplexity calculation: {e}"
-
-
-# Streamlit Code to Display Perplexity
-st.header("Evaluation Metrics 📊")
-
-# Ensure itinerary is valid before evaluating perplexity
-if itinerary and isinstance(itinerary, str):
-    perplexity_score = compute_perplexity(itinerary)
-    # Check if perplexity_score is numeric before formatting
-    if isinstance(perplexity_score, (float, int)):
-        st.write(f"**Perplexity:** {perplexity_score:.2f}")
-    else:
-        # Display error message directly
-        st.write(f"**Perplexity:** {perplexity_score}")
-else:
-    st.write("**Perplexity:** Skipped (Itinerary is empty or invalid)")
-
-
+    inputs = tokenizer(text, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs, labels=inputs["input_ids"])
+        loss = outputs.loss
+        perplexity = torch.exp(loss)
+    return perplexity.item()
 
 # Streamlit UI configuration
 st.set_page_config(
