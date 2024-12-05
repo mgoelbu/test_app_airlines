@@ -3,6 +3,7 @@ from langchain_core.tools import Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
 import openai
 import streamlit as st
+from datetime import datetime
 
 # Load API keys
 my_secret_key = st.secrets['MyOpenAIKey']
@@ -63,7 +64,7 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
             destination=destination,
             interests=", ".join(interests) if interests else "general activities",
             budget=budget,
-            travel_dates=travel_dates
+            travel_dates=", ".join([date.strftime('%Y-%m-%d') for date in travel_dates])
         )
         response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
@@ -73,27 +74,50 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
     except Exception as e:
         return f"An error occurred while generating the itinerary: {e}"
 
-# Function to display itinerary in an inspired UI format
+# Function to dynamically calculate and display costs
+def calculate_total_costs(itinerary_data):
+    # Placeholder for extracting costs from itinerary data (dynamic implementation needed)
+    # Replace this with parsing logic if the itinerary includes detailed costs
+    costs = {
+        "Flights": 70000,  # Replace with flight data
+        "Accommodation": 72000,  # Replace with parsed data
+        "Food & Dining": 27500,  # Replace with parsed data
+        "Activities & Entry Fees": 22600,  # Replace with parsed data
+        "Transportation (within city)": 8000  # Replace with parsed data
+    }
+    total = sum(costs.values())
+
+    # Format costs as a clean, readable HTML section
+    cost_html = "<ul>"
+    for key, value in costs.items():
+        cost_html += f"<li><strong>{key}:</strong> ₹{value:,}</li>"
+    cost_html += f"</ul><strong>Total: ₹{total:,}</strong>"
+
+    return cost_html
+
+# Function to display itinerary in a clean and modern UI format
 def display_itinerary_ui(itinerary_text):
-    st.markdown("## Your Travel Itinerary 🗺️")
+    st.markdown("## ✈️ Your Travel Itinerary")
     st.markdown("""
         <style>
-        .itinerary-section {
+        .itinerary-card {
             font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
+            background-color: #ffffff;
             padding: 20px;
-            border-radius: 10px;
             margin-bottom: 20px;
             border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .itinerary-header {
-            font-size: 20px;
-            color: #333;
+        .itinerary-title {
+            font-size: 18px;
             font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
         }
-        .itinerary-content {
-            font-size: 16px;
-            color: #555;
+        .itinerary-details {
+            font-size: 15px;
+            color: #444;
             line-height: 1.6;
         }
         </style>
@@ -103,29 +127,25 @@ def display_itinerary_ui(itinerary_text):
 
     for day in days:
         if day.strip():  # Ignore empty segments
-            lines = day.split("\n")
+            lines = day.strip().split("\n")
             day_title = f"Day {lines[0].strip()}" if lines else "Day"
             day_content = "\n".join(lines[1:])
 
-            with st.expander(f"{day_title}"):
-                st.markdown(f"""
-                <div class="itinerary-section">
-                    <div class="itinerary-content">{day_content}</div>
-                </div>
-                """, unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="itinerary-card">
+                <div class="itinerary-title">{day_title}</div>
+                <div class="itinerary-details">{day_content}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    st.markdown("### Total Estimated Costs 💰")
-    st.markdown("""
-        <div class="itinerary-section">
-            <div class="itinerary-content">
-                <ul>
-                    <li>Flights: ₹70,000</li>
-                    <li>Accommodation: ₹72,000</li>
-                    <li>Food & Dining: ₹27,500</li>
-                    <li>Activities & Entry Fees: ₹22,600</li>
-                    <li>Transportation (within city): ₹8,000</li>
-                </ul>
-                <strong>Total: ₹200,100</strong>
+    # Dynamically calculate costs
+    cost_summary = calculate_total_costs(itinerary_text)
+
+    st.markdown("### 💰 Total Estimated Costs")
+    st.markdown(f"""
+        <div class="itinerary-card">
+            <div class="itinerary-details">
+                {cost_summary}
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -201,8 +221,8 @@ if st.session_state.branch == "Pre-travel":
                 st.session_state.budget
             )
 
-            with st.expander("Flight Prices", expanded=True):
+            with st.expander("Flight Prices ✈️", expanded=False):
                 st.write(flight_prices)
 
-            # Use the new UI for the itinerary section
+            # Use the updated UI for the itinerary section
             display_itinerary_ui(itinerary)
