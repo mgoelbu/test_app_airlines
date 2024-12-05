@@ -3,7 +3,6 @@ from langchain_core.tools import Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
 import openai
 import streamlit as st
-from datetime import datetime
 
 # Load API keys
 my_secret_key = st.secrets['MyOpenAIKey']
@@ -64,7 +63,7 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
             destination=destination,
             interests=", ".join(interests) if interests else "general activities",
             budget=budget,
-            travel_dates=", ".join([date.strftime('%Y-%m-%d') for date in travel_dates])
+            travel_dates=travel_dates
         )
         response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
@@ -73,82 +72,6 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
         return response.choices[0].message["content"]
     except Exception as e:
         return f"An error occurred while generating the itinerary: {e}"
-
-# Function to dynamically calculate and display costs
-def calculate_total_costs(itinerary_data):
-    # Placeholder for extracting costs from itinerary data (dynamic implementation needed)
-    # Replace this with parsing logic if the itinerary includes detailed costs
-    costs = {
-        "Flights": 70000,  # Replace with flight data
-        "Accommodation": 72000,  # Replace with parsed data
-        "Food & Dining": 27500,  # Replace with parsed data
-        "Activities & Entry Fees": 22600,  # Replace with parsed data
-        "Transportation (within city)": 8000  # Replace with parsed data
-    }
-    total = sum(costs.values())
-
-    # Format costs as a clean, readable HTML section
-    cost_html = "<ul>"
-    for key, value in costs.items():
-        cost_html += f"<li><strong>{key}:</strong> ₹{value:,}</li>"
-    cost_html += f"</ul><strong>Total: ₹{total:,}</strong>"
-
-    return cost_html
-
-# Function to display itinerary in a clean and modern UI format
-def display_itinerary_ui(itinerary_text):
-    st.markdown("## ✈️ Your Travel Itinerary")
-    st.markdown("""
-        <style>
-        .itinerary-card {
-            font-family: Arial, sans-serif;
-            background-color: #ffffff;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .itinerary-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .itinerary-details {
-            font-size: 15px;
-            color: #444;
-            line-height: 1.6;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    days = itinerary_text.split("Day")  # Assume each day starts with "Day"
-
-    for day in days:
-        if day.strip():  # Ignore empty segments
-            lines = day.strip().split("\n")
-            day_title = f"Day {lines[0].strip()}" if lines else "Day"
-            day_content = "\n".join(lines[1:])
-
-            st.markdown(f"""
-            <div class="itinerary-card">
-                <div class="itinerary-title">{day_title}</div>
-                <div class="itinerary-details">{day_content}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # Dynamically calculate costs
-    cost_summary = calculate_total_costs(itinerary_text)
-
-    st.markdown("### 💰 Total Estimated Costs")
-    st.markdown(f"""
-        <div class="itinerary-card">
-            <div class="itinerary-details">
-                {cost_summary}
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
 
 # Streamlit UI configuration
 st.set_page_config(
@@ -221,8 +144,16 @@ if st.session_state.branch == "Pre-travel":
                 st.session_state.budget
             )
 
-            with st.expander("Flight Prices ✈️", expanded=False):
+            with st.expander("Flight Prices", expanded=True):
                 st.write(flight_prices)
+            with st.expander("Itinerary", expanded=True):
+                st.write(itinerary)
 
-            # Use the updated UI for the itinerary section
-            display_itinerary_ui(itinerary)
+# Post-travel Branch
+if st.session_state.branch == "Post-travel":
+    st.header("Post-travel: Data Classification and Summary")
+    uploaded_file = st.file_uploader("Upload your travel data (Excel file)", type=["xlsx"])
+    if uploaded_file is not None:
+        df = pd.read_excel(uploaded_file)
+        st.subheader("Data Preview:")
+        st.write(df.head())
