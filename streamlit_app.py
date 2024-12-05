@@ -97,18 +97,22 @@ def compute_perplexity(text):
     model = GPT2LMHeadModel.from_pretrained("gpt2")
     model.eval()  # Ensure the model is in evaluation mode
 
-    # Tokenize the input text and add padding if necessary
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512, padding=True)
+    # Validate input text
+    if not text or not isinstance(text, str):
+        return "Error: Input text is empty or invalid."
 
-    with torch.no_grad():
-        try:
+    # Tokenize the input text and add padding if necessary
+    try:
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512, padding=True)
+
+        with torch.no_grad():
             # Use input_ids as both inputs and labels
             outputs = model(**inputs, labels=inputs["input_ids"])
             loss = outputs.loss
             perplexity = torch.exp(loss)
             return perplexity.item()
-        except Exception as e:
-            return f"Error in perplexity calculation: {e}"
+    except Exception as e:
+        return f"Error in perplexity calculation: {e}"
 
 
 # Streamlit UI configuration
