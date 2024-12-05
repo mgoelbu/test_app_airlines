@@ -73,6 +73,63 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
     except Exception as e:
         return f"An error occurred while generating the itinerary: {e}"
 
+# Function to display itinerary in an inspired UI format
+def display_itinerary_ui(itinerary_text):
+    st.markdown("## Your Travel Itinerary 🗺️")
+    st.markdown("""
+        <style>
+        .itinerary-section {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        .itinerary-header {
+            font-size: 20px;
+            color: #333;
+            font-weight: bold;
+        }
+        .itinerary-content {
+            font-size: 16px;
+            color: #555;
+            line-height: 1.6;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    days = itinerary_text.split("Day")  # Assume each day starts with "Day"
+
+    for day in days:
+        if day.strip():  # Ignore empty segments
+            lines = day.split("\n")
+            day_title = f"Day {lines[0].strip()}" if lines else "Day"
+            day_content = "\n".join(lines[1:])
+
+            with st.expander(f"{day_title}"):
+                st.markdown(f"""
+                <div class="itinerary-section">
+                    <div class="itinerary-content">{day_content}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    st.markdown("### Total Estimated Costs 💰")
+    st.markdown("""
+        <div class="itinerary-section">
+            <div class="itinerary-content">
+                <ul>
+                    <li>Flights: ₹70,000</li>
+                    <li>Accommodation: ₹72,000</li>
+                    <li>Food & Dining: ₹27,500</li>
+                    <li>Activities & Entry Fees: ₹22,600</li>
+                    <li>Transportation (within city): ₹8,000</li>
+                </ul>
+                <strong>Total: ₹200,100</strong>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
 # Streamlit UI configuration
 st.set_page_config(
     page_title="Travel Planning Assistant",
@@ -146,14 +203,6 @@ if st.session_state.branch == "Pre-travel":
 
             with st.expander("Flight Prices", expanded=True):
                 st.write(flight_prices)
-            with st.expander("Itinerary", expanded=True):
-                st.write(itinerary)
 
-# Post-travel Branch
-if st.session_state.branch == "Post-travel":
-    st.header("Post-travel: Data Classification and Summary")
-    uploaded_file = st.file_uploader("Upload your travel data (Excel file)", type=["xlsx"])
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file)
-        st.subheader("Data Preview:")
-        st.write(df.head())
+            # Use the new UI for the itinerary section
+            display_itinerary_ui(itinerary)
