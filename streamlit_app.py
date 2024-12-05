@@ -93,6 +93,9 @@ def compute_execution_time(func, *args, **kwargs):
     return result, execution_time
 
 def compute_perplexity(text):
+    from transformers import GPT2Tokenizer, GPT2LMHeadModel
+    import torch
+
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
     model = GPT2LMHeadModel.from_pretrained("gpt2")
     model.eval()  # Ensure the model is in evaluation mode
@@ -113,6 +116,23 @@ def compute_perplexity(text):
             return perplexity.item()
     except Exception as e:
         return f"Error in perplexity calculation: {e}"
+
+
+# Streamlit Code to Display Perplexity
+st.header("Evaluation Metrics 📊")
+
+# Ensure itinerary is valid before evaluating perplexity
+if itinerary and isinstance(itinerary, str):
+    perplexity_score = compute_perplexity(itinerary)
+    # Check if perplexity_score is numeric before formatting
+    if isinstance(perplexity_score, (float, int)):
+        st.write(f"**Perplexity:** {perplexity_score:.2f}")
+    else:
+        # Display error message directly
+        st.write(f"**Perplexity:** {perplexity_score}")
+else:
+    st.write("**Perplexity:** Skipped (Itinerary is empty or invalid)")
+
 
 
 # Streamlit UI configuration
