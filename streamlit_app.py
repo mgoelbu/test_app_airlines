@@ -95,12 +95,21 @@ def compute_execution_time(func, *args, **kwargs):
 def compute_perplexity(text):
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
     model = GPT2LMHeadModel.from_pretrained("gpt2")
-    inputs = tokenizer(text, return_tensors="pt")
+    model.eval()  # Ensure the model is in evaluation mode
+
+    # Tokenize the input text and add padding if necessary
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512, padding=True)
+
     with torch.no_grad():
-        outputs = model(**inputs, labels=inputs["input_ids"])
-        loss = outputs.loss
-        perplexity = torch.exp(loss)
-    return perplexity.item()
+        try:
+            # Use input_ids as both inputs and labels
+            outputs = model(**inputs, labels=inputs["input_ids"])
+            loss = outputs.loss
+            perplexity = torch.exp(loss)
+            return perplexity.item()
+        except Exception as e:
+            return f"Error in perplexity calculation: {e}"
+
 
 # Streamlit UI configuration
 st.set_page_config(
