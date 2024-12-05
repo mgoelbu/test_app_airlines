@@ -6,3 +6,10 @@ langchain-community
 pytesseract
 pillow
 geopy
+streamlit
+nltk
+transformers
+torch
+openai
+langchain-core
+
