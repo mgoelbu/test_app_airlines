@@ -3,6 +3,10 @@ from langchain_core.tools import Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
 import openai
 import streamlit as st
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+import time
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+import torch
 
 # Load API keys
 my_secret_key = st.secrets['MyOpenAIKey']
@@ -73,6 +77,31 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
     except Exception as e:
         return f"An error occurred while generating the itinerary: {e}"
 
+# Evaluation Metrics Functions
+def compute_bleu(system_output, reference_output):
+    system_tokens = system_output.lower().split()
+    reference_tokens = [reference_output.lower().split()]
+    smoothie = SmoothingFunction().method4
+    bleu_score = sentence_bleu(reference_tokens, system_tokens, smoothing_function=smoothie)
+    return bleu_score
+
+def compute_execution_time(func, *args, **kwargs):
+    start_time = time.time()
+    result = func(*args, **kwargs)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    return result, execution_time
+
+def compute_perplexity(text):
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    model = GPT2LMHeadModel.from_pretrained("gpt2")
+    inputs = tokenizer(text, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs, labels=inputs["input_ids"])
+        loss = outputs.loss
+        perplexity = torch.exp(loss)
+    return perplexity.item()
+
 # Streamlit UI configuration
 st.set_page_config(
     page_title="Travel Planning Assistant",
@@ -131,12 +160,17 @@ if st.session_state.branch == "Pre-travel":
         if not st.session_state.origin or not st.session_state.destination or not st.session_state.travel_dates:
             st.error("Please fill in all required fields (origin, destination, and travel dates).")
         else:
-            flight_prices = fetch_flight_prices(
+            # Fetch flight prices and measure execution time
+            flight_prices, exec_time_flights = compute_execution_time(
+                fetch_flight_prices,
                 st.session_state.origin,
                 st.session_state.destination,
                 st.session_state.travel_dates[0].strftime("%Y-%m-%d")
             )
-            itinerary = generate_itinerary_with_chatgpt(
+            
+            # Generate itinerary and measure execution time
+            itinerary, exec_time_itinerary = compute_execution_time(
+                generate_itinerary_with_chatgpt,
                 st.session_state.origin,
                 st.session_state.destination,
                 st.session_state.travel_dates,
@@ -146,14 +180,22 @@ if st.session_state.branch == "Pre-travel":
 
             with st.expander("Flight Prices", expanded=True):
                 st.write(flight_prices)
+                st.write(f"Execution Time: {exec_time_flights:.2f} seconds")
+
             with st.expander("Itinerary", expanded=True):
                 st.write(itinerary)
+                st.write(f"Execution Time: {exec_time_itinerary:.2f} seconds")
 
-# Post-travel Branch
-if st.session_state.branch == "Post-travel":
-    st.header("Post-travel: Data Classification and Summary")
-    uploaded_file = st.file_uploader("Upload your travel data (Excel file)", type=["xlsx"])
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file)
-        st.subheader("Data Preview:")
-        st.write(df.head())
+            # Evaluation Section
+            st.header("Evaluation Metrics 📊")
+            # BLEU score (sample reference for demonstration)
+            reference_flight_prices = """
+            Cheapest Flight: $250, Airline: Delta, Date: 2024-12-10
+            Additional options: $300 with United, $320 with American Airlines
+            """
+            bleu_score = compute_bleu(flight_prices, reference_flight_prices)
+            st.write(f"**BLEU Score:** {bleu_score:.2f}")
+
+            # Perplexity of generated itinerary
+            perplexity_score = compute_perplexity(itinerary)
+            st.write(f"**Perplexity:** {perplexity_score:.2f}")
