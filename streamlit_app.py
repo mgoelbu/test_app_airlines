@@ -57,19 +57,20 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
     except Exception as e:
         return f"An error occurred while formatting the response: {e}"
 
-# Function to fetch flight prices and format them with ChatGPT
+# Function to fetch flight prices and dynamically calculate token usage
 def fetch_flight_prices(origin, destination, departure_date):
     try:
         query = f"flights from {origin} to {destination} on {departure_date}"
         raw_response = serper_tool.func(query)
-        formatted_response = format_flight_prices_with_chatgpt(
+        formatted_response, token_usage = format_flight_prices_with_chatgpt(
             raw_response, origin, destination, departure_date
         )
-        return formatted_response
+        return formatted_response, token_usage
     except Exception as e:
-        return f"An error occurred while fetching or formatting flight prices: {e}"
+        return f"An error occurred while fetching or formatting flight prices: {e}", 0
 
-# Function to generate a detailed itinerary using ChatGPT
+
+# Function to generate a detailed itinerary using ChatGPT and dynamically calculate token usage
 def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget):
     try:
         prompt_template = """
@@ -89,9 +90,10 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
-        return response.choices[0].message["content"]
+        token_usage = response.usage.total_tokens
+        return response.choices[0].message["content"], token_usage
     except Exception as e:
-        return f"An error occurred while generating the itinerary: {e}"
+        return f"An error occurred while generating the itinerary: {e}", 0
 
 # Function to create a PDF from itinerary and flight prices
 def create_pdf(itinerary, flight_prices):
@@ -251,10 +253,11 @@ if st.session_state.itinerary and st.session_state.flight_prices:
         mime="application/pdf",
     )
 
-# Display Evaluation Metrics
+
+# Evaluation Metrics Section
 if "token_usage" in st.session_state:
     st.subheader("📊 Evaluation Metrics")
-    OPENAI_COST_PER_1K_TOKENS = 0.0025
+    OPENAI_COST_PER_1K_TOKENS = 0.002
     total_tokens = sum(st.session_state["token_usage"].values())
     total_cost = (total_tokens / 1000) * OPENAI_COST_PER_1K_TOKENS
 
