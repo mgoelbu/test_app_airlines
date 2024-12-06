@@ -1,15 +1,3 @@
-#os.environ["OPENAI_API_KEY"] = st.secrets['IS883-OpenAIKey-RV']
-#os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
-
-#my_secret_key = st.secrets['MyOpenAIKey']
-#os.environ["OPENAI_API_KEY"] = my_secret_key
-
-#my_secret_key = st.secrets['IS883-OpenAIKey-RV']
-#os.environ["OPENAI_API_KEY"] = my_secret_key
-
-#my_secret_key = st.secrets['IS883-OpenAIKey-RV']
-#openai.api_key = my_secret_key
-
 import os
 import urllib.parse
 from io import BytesIO
@@ -23,9 +11,7 @@ import streamlit as st
 import time
 
 # Load API keys
-my_secret_key = st.secrets['MyOpenAIKey']
-openai.api_key = my_secret_key
-#os.environ["OPENAI_API_KEY"] = st.secrets['MyOpenAIKey']
+os.environ["OPENAI_API_KEY"] = st.secrets['IS883-OpenAIKey-RV']
 os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
 
 # Function to generate Google Maps link
@@ -50,7 +36,7 @@ serper_tool = Tool(
     description="Useful for when you need to look up some information on the internet.",
 )
 
-# Function to query ChatGPT for better formatting
+# OpenAI API call with token usage tracking
 def format_flight_prices_with_chatgpt(raw_response, origin, destination, departure_date):
     try:
         prompt = f"""
@@ -66,23 +52,24 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
-        return response.choices[0].message["content"]
+        token_usage = response.usage.total_tokens
+        return response.choices[0].message["content"], token_usage
     except Exception as e:
-        return f"An error occurred while formatting the response: {e}"
+        return f"An error occurred while formatting the response: {e}", 0
 
-# Function to fetch flight prices and format them with ChatGPT
+# Function to fetch flight prices and calculate token usage
 def fetch_flight_prices(origin, destination, departure_date):
     try:
         query = f"flights from {origin} to {destination} on {departure_date}"
         raw_response = serper_tool.func(query)
-        formatted_response = format_flight_prices_with_chatgpt(
+        formatted_response, token_usage = format_flight_prices_with_chatgpt(
             raw_response, origin, destination, departure_date
         )
-        return formatted_response
+        return formatted_response, token_usage
     except Exception as e:
-        return f"An error occurred while fetching or formatting flight prices: {e}"
+        return f"An error occurred while fetching or formatting flight prices: {e}", 0
 
-# Function to generate a detailed itinerary using ChatGPT
+# Function to generate an itinerary and calculate token usage
 def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget):
     try:
         prompt_template = """
@@ -102,16 +89,16 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
-        return response.choices[0].message["content"]
+        token_usage = response.usage.total_tokens
+        return response.choices[0].message["content"], token_usage
     except Exception as e:
-        return f"An error occurred while generating the itinerary: {e}"
+        return f"An error occurred while generating the itinerary: {e}", 0
 
-# Function to create a PDF from itinerary and flight prices
+# Function to create a PDF from the itinerary and flight prices
 def create_pdf(itinerary, flight_prices):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
 
-    # Styles for the document
     styles = getSampleStyleSheet()
     title_style = styles["Heading1"]
     section_style = styles["Heading2"]
@@ -119,202 +106,60 @@ def create_pdf(itinerary, flight_prices):
 
     elements = []
 
-    # Add title
     elements.append(Paragraph("Travel Itinerary", title_style))
-    elements.append(Spacer(1, 20))  # Add space
+    elements.append(Spacer(1, 20))
 
-    # Add itinerary section
     elements.append(Paragraph("Itinerary:", section_style))
     for line in itinerary.splitlines():
         elements.append(Paragraph(line, text_style))
-    elements.append(Spacer(1, 20))  # Add space
+    elements.append(Spacer(1, 20))
 
-    # Add flight prices section
     elements.append(Paragraph("Flight Prices:", section_style))
     for line in flight_prices.splitlines():
         elements.append(Paragraph(line, text_style))
-    elements.append(Spacer(1, 20))  # Add space
+    elements.append(Spacer(1, 20))
 
-    # Build the PDF
     doc.build(elements)
     buffer.seek(0)
     return buffer
 
-# Streamlit UI configuration
-st.set_page_config(
-    page_title="Travel Planning Assistant",
-    page_icon="🛫",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Add custom CSS for sky blue background
-st.markdown(
-    """
-    <style>
-    body {
-        background-color: #e3f2fd;
-    }
-    h1, h2, h3 {
-        color: #2c3e50;
-        font-family: 'Arial', sans-serif;
-    }
-    .st-expander {
-        background-color: #f9f9f9;
-        border-radius: 10px;
-        border: 1px solid #ddd;
-        padding: 10px;
-    }
-    .st-expander-header {
-        font-weight: bold;
-        color: #2980b9;
-    }
-    .stButton>button {
-        background-color: #2980b9;
-        color: white;
-        font-size: 16px;
-        border-radius: 5px;
-        padding: 10px 15px;
-    }
-    .stButton>button:hover {
-        background-color: #1c598a;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# Function to display content in cards
-def display_card(title, content):
-    return f"""
-    <div style="background-color:#f9f9f9; padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid #ddd;">
-        <h4 style="color:#2980b9;">{title}</h4>
-        <p>{content}</p>
-    </div>
-    """
-
-# App Title
-st.title("🌍 Travel Planning Assistant")
-st.write("Plan your perfect trip with personalized itineraries and flight suggestions!")
+# Streamlit UI Configuration
+st.set_page_config(page_title="Travel Planning Assistant", page_icon="🛫", layout="wide")
 
 # Sidebar Inputs
 with st.sidebar:
     st.header("🛠️ Trip Details")
-    origin = st.text_input("Flying From (Origin Airport/City)", placeholder="Enter your departure city/airport")
-    destination = st.text_input("Flying To (Destination Airport/City)", placeholder="Enter your destination city/airport")
-    travel_dates = st.date_input("📅 Travel Dates", [], help="Select your trip's start and end dates.")
-    budget = st.selectbox("💰 Select your budget level", ["Low (up to $5,000)", "Medium ($5,000 to $10,000)", "High ($10,000+)"])
-    interests = st.multiselect("🎯 Select your interests", ["Beach", "Hiking", "Museums", "Local Food", "Shopping", "Parks", "Cultural Sites", "Nightlife"])
+    origin = st.text_input("Flying From", placeholder="Enter your departure city/airport")
+    destination = st.text_input("Flying To", placeholder="Enter your destination city/airport")
+    travel_dates = st.date_input("📅 Travel Dates", [])
+    budget = st.selectbox("💰 Budget Level", ["Low", "Medium", "High"])
+    interests = st.multiselect("🎯 Interests", ["Beach", "Hiking", "Museums"])
 
-# Store results in session state
-if "itinerary" not in st.session_state:
-    st.session_state.itinerary = None
-if "flight_prices" not in st.session_state:
-    st.session_state.flight_prices = None
-
-# Main Content Section
+# Generate Itinerary Button
 if st.button("📝 Generate Travel Itinerary"):
     if not origin or not destination or len(travel_dates) != 2:
-        st.error("⚠️ Please provide all required details: origin, destination, and a valid travel date range.")
+        st.error("⚠️ Please provide all required details.")
     else:
-        progress = st.progress(0)
-        for i in range(100):
-            time.sleep(0.01)  # Simulate loading time
-            progress.progress(i + 1)
-
         with st.spinner("Fetching details..."):
-            st.session_state.flight_prices = fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
-            st.session_state.itinerary = generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget)
+            flight_prices, flight_tokens = fetch_flight_prices(
+                origin, destination, travel_dates[0].strftime("%Y-%m-%d")
+            )
+            itinerary, itinerary_tokens = generate_itinerary_with_chatgpt(
+                origin, destination, travel_dates, interests, budget
+            )
+            st.session_state["flight_prices"] = flight_prices
+            st.session_state["itinerary"] = itinerary
+            st.session_state["token_usage"] = {
+                "flight_prices": flight_tokens,
+                "itinerary": itinerary_tokens,
+            }
 
-# Display results only if available
-if st.session_state.itinerary and st.session_state.flight_prices:
-    st.success("✅ Your travel details are ready!")
+# Display Evaluation Metrics
+if "token_usage" in st.session_state:
+    st.subheader("📊 Evaluation Metrics")
+    OPENAI_COST_PER_1K_TOKENS = 0.0025
+    total_tokens = sum(st.session_state["token_usage"].values())
+    total_cost = (total_tokens / 1000) * OPENAI_COST_PER_1K_TOKENS
 
-    # Create two columns
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown(display_card("Itinerary", st.session_state.itinerary), unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(display_card("Flight Prices", st.session_state.flight_prices), unsafe_allow_html=True)
-
-    # Display map links directly on the main page
-    st.subheader("📍 Places to Visit with Map Links")
-    activities = [
-        line.split(":")[1].strip() 
-        for line in st.session_state.itinerary.split("\n") 
-        if ":" in line and "Activity" in line
-    ]
-    if activities:
-        for activity in activities:
-            place_name = extract_place_name(activity)
-            if place_name:
-                maps_link = generate_maps_link(place_name, destination)
-                st.markdown(f"- **{place_name}**: [View on Google Maps]({maps_link})")
-    else:
-        st.write("No activities could be identified.")
-
-    # Generate and provide download link for PDF
-    pdf_buffer = create_pdf(st.session_state.itinerary, st.session_state.flight_prices)
-    st.download_button(
-        label="📥 Download Itinerary as PDF",
-        data=pdf_buffer,
-        file_name="travel_itinerary.pdf",
-        mime="application/pdf",
-    )
-
-
-import time
-
-# Add a section at the bottom for evaluation metrics
-st.markdown("## 📊 Evaluation Metrics")
-
-# Initialize variables to store metrics
-execution_times = {}
-api_costs = {}
-
-# Measure the execution time for fetching flight prices
-start_time = time.time()
-if "flight_prices" in st.session_state and st.session_state.flight_prices:
-    fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
-end_time = time.time()
-execution_times["Fetch Flight Prices"] = end_time - start_time
-
-# Measure the execution time for generating an itinerary
-start_time = time.time()
-if "itinerary" in st.session_state and st.session_state.itinerary:
-    generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget)
-end_time = time.time()
-execution_times["Generate Itinerary"] = end_time - start_time
-
-# Calculate approximate costs (replace these rates with your actual API cost structures)
-OPENAI_COST_PER_1K_TOKENS = 0.002  # Example: $0.002 per 1k tokens
-SERPER_COST_PER_QUERY = 0.01       # Example: $0.01 per query
-
-# Estimating token usage for OpenAI API calls
-openai_token_usage = 1500  # Adjust based on your actual token usage per call
-api_costs["OpenAI API"] = (openai_token_usage / 1000) * OPENAI_COST_PER_1K_TOKENS
-
-# Estimating query usage for Serper API calls
-serper_query_count = 1  # Assume 1 query per flight search
-api_costs["Serper API"] = serper_query_count * SERPER_COST_PER_QUERY
-
-# Display the metrics in the app
-st.subheader("Execution Times (in seconds)")
-for task, exec_time in execution_times.items():
-    st.write(f"- **{task}**: {exec_time:.2f} seconds")
-
-st.subheader("Estimated API Costs (in USD)")
-for api, cost in api_costs.items():
-    st.write(f"- **{api}**: ${cost:.4f}")
-
-# Add an overall summary
-st.markdown(
-    """
-    ### Summary
-    - **Total Execution Time**: {:.2f} seconds
-    - **Total Estimated Cost**: ${:.4f}
-    """.format(sum(execution_times.values()), sum(api_costs.values()))
-)
-
+    st.write(f"- **Total Tokens Used**: {total_tokens}")
+    st.write(f"- **Estimated OpenAI API Cost**: ${total_cost:.4f}")
