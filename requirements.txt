@@ -12,4 +12,5 @@ transformers
 torch
 openai
 langchain-core
+reportlab
 
