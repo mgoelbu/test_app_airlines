@@ -328,16 +328,68 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 reference_itinerary = """
 Trip Itinerary: Boston to Sydney
 Travel Dates: December 29, 2024 - January 3, 2025
-Day 1: Departure from Boston
-  - Depart from Boston (BOS) to Sydney (SYD)
-  - Estimated Cost: $1,200 USD
-Day 2: Arrival in Sydney
-  - Activity 1: Sydney Opera House
-  - Activity 2: Royal Botanic Garden
-Day 3: Australian Museum and Explore The Rocks
-Day 4: Art Gallery of New South Wales
-Day 5: Taronga Zoo
-Day 6: Departure from Sydney
+Budget Level: Low (up to $5,000)
+
+Day 1: December 29, 2024 - Departure from Boston
+- Flight:
+  - Depart from Boston (BOS) to Sydney (SYD).
+  - Estimated Cost: $1,200 USD (around 1,800 AUD).
+- Total Expense Day 1: $1,200 USD (1,800 AUD).
+
+Day 2: December 30, 2024 - Arrival in Sydney
+- Activity 1: Explore the Sydney Opera House.
+  - Description: Iconic architectural marvel and cultural venue.
+  - Cost: Free self-guided tour (booked in advance). Guided tours cost around 150 AUD.
+  - Expense in Local Currency: 0 AUD (self-guided).
+  - Expense in USD: 0 USD.
+- Activity 2: Visit the Royal Botanic Garden.
+  - Description: Beautiful gardens with stunning views of the Sydney Harbour and the Opera House.
+  - Cost: Free entry.
+  - Expense in Local Currency: 0 AUD.
+  - Expense in USD: 0 USD.
+
+Day 3: December 31, 2024 - Sydney
+- Activity 3: Australian Museum.
+  - Description: Australia's oldest museum featuring natural history and cultural artifacts.
+  - Cost: Ticket price is 15 AUD.
+  - Expense in Local Currency: 15 AUD.
+  - Expense in USD: 10 USD.
+- Activity 4: Explore The Rocks.
+  - Description: Historic area with quaint houses, shops, and a market on weekends.
+  - Cost: Free to explore.
+  - Expense in Local Currency: 0 AUD.
+  - Expense in USD: 0 USD.
+
+Day 4: January 1, 2025 - Sydney
+- Activity 5: Art Gallery of New South Wales.
+  - Description: A major public gallery featuring Australian and international art.
+  - Cost: Free entry to the main galleries; special exhibitions may charge around 20 AUD.
+  - Expense in Local Currency: 0 AUD (main galleries).
+  - Expense in USD: 0 USD.
+
+Day 5: January 2, 2025 - Sydney
+- Activity 6: Visit Taronga Zoo.
+  - Description: A well-known zoo with a focus on conservation and education.
+  - Cost: Ticket price is 49 AUD.
+  - Expense in Local Currency: 49 AUD.
+  - Expense in USD: 32 USD.
+
+Day 6: January 3, 2025 - Departure from Sydney
+- Flight:
+  - Depart from Sydney (SYD) back to Boston (BOS).
+  - Estimated Cost: Included in the round-trip airfare.
+
+Summary of Expenses:
+- Flight (Boston to Sydney): $1,200 USD (1,800 AUD).
+- Australian Museum: $10 USD (15 AUD).
+- Taronga Zoo: $32 USD (49 AUD).
+- Total Expense: $1,242 USD (1,864 AUD).
+- Remaining Budget: $5,000 USD - $1,242 USD = $3,758 USD.
+
+Additional Tips:
+- Access to transportation such as public transport (Opal card) will cost an additional 50-100 AUD for the duration of your stay.
+- Enjoy local eateries for affordable meals; budget around 20-35 AUD per meal.
+
 """
 
 # Generated Itinerary (Replace with the output from the app)
