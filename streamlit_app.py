@@ -1,3 +1,16 @@
+#os.environ["OPENAI_API_KEY"] = st.secrets['IS883-OpenAIKey-RV']
+#os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
+
+#my_secret_key = st.secrets['MyOpenAIKey']
+#os.environ["OPENAI_API_KEY"] = my_secret_key
+
+#my_secret_key = st.secrets['IS883-OpenAIKey-RV']
+#os.environ["OPENAI_API_KEY"] = my_secret_key
+
+#my_secret_key = st.secrets['IS883-OpenAIKey-RV']
+#openai.api_key = my_secret_key
+
+
 import os
 import urllib.parse
 from io import BytesIO
@@ -12,7 +25,9 @@ import time
 
 
 # Load API keys
-os.environ["OPENAI_API_KEY"] = st.secrets['MyOpenAIKey']
+my_secret_key = st.secrets['MyOpenAIKey']
+openai.api_key = my_secret_key
+#os.environ["OPENAI_API_KEY"] = st.secrets['MyOpenAIKey']
 os.environ["SERPER_API_KEY"] = st.secrets["SerperAPIKey"]
 
 # Function to generate Google Maps link
