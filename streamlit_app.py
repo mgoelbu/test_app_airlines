@@ -304,3 +304,59 @@ st.markdown(
     - **Total Execution Time**: {:.2f} seconds
     """.format(sum(execution_times.values()))
 )
+
+
+from rouge_score import rouge_scorer
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+
+# Reference Itinerary for Evaluation (manually curated or from trusted sources)
+reference_itinerary = """
+Trip Itinerary: Boston to Sydney
+Travel Dates: December 29, 2024 - January 3, 2025
+Day 1: Departure from Boston
+  - Depart from Boston (BOS) to Sydney (SYD)
+  - Estimated Cost: $1,200 USD
+Day 2: Arrival in Sydney
+  - Activity 1: Sydney Opera House
+  - Activity 2: Royal Botanic Garden
+Day 3: Australian Museum and Explore The Rocks
+Day 4: Art Gallery of New South Wales
+Day 5: Taronga Zoo
+Day 6: Departure from Sydney
+"""
+
+# Generated Itinerary (Replace with the output from the app)
+generated_itinerary = st.session_state.itinerary if "itinerary" in st.session_state else ""
+
+# ROUGE Evaluation
+def evaluate_rouge(reference, generated):
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+    scores = scorer.score(reference, generated)
+    return scores
+
+# BLEU Evaluation
+def evaluate_bleu(reference, generated):
+    # Tokenize and split sentences into lists of words
+    reference_sentences = [reference.split()]  # BLEU expects a list of references
+    generated_sentences = generated.split()  # Tokenize generated text
+    smoothing = SmoothingFunction().method1  # Add smoothing to avoid zero scores
+    bleu_score = sentence_bleu(reference_sentences, generated_sentences, smoothing_function=smoothing)
+    return bleu_score
+
+# Perform Evaluations if Both Reference and Generated Itineraries are Available
+if generated_itinerary:
+    rouge_scores = evaluate_rouge(reference_itinerary, generated_itinerary)
+    bleu_score = evaluate_bleu(reference_itinerary, generated_itinerary)
+
+    # Display ROUGE Scores
+    st.subheader("ROUGE Evaluation Metrics")
+    st.write(f"ROUGE-1 (Unigram Overlap): {rouge_scores['rouge1'].fmeasure:.4f}")
+    st.write(f"ROUGE-2 (Bigram Overlap): {rouge_scores['rouge2'].fmeasure:.4f}")
+    st.write(f"ROUGE-L (Longest Common Subsequence): {rouge_scores['rougeL'].fmeasure:.4f}")
+
+    # Display BLEU Score
+    st.subheader("BLEU Evaluation Metric")
+    st.write(f"BLEU Score: {bleu_score:.4f}")
+else:
+    st.error("No generated itinerary available for evaluation.")
+
