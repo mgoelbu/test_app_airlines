@@ -260,7 +260,7 @@ st.markdown("## 📊 Evaluation Metrics")
 
 # Initialize variables to store metrics
 execution_times = {}
-api_costs = {}
+#api_costs = {}
 
 # Measure the execution time for fetching flight prices
 start_time = time.time()
@@ -277,31 +277,30 @@ end_time = time.time()
 execution_times["Generate Itinerary"] = end_time - start_time
 
 # Calculate approximate costs (replace these rates with your actual API cost structures)
-OPENAI_COST_PER_1K_TOKENS = 0.002  # Example: $0.002 per 1k tokens
-SERPER_COST_PER_QUERY = 0.01       # Example: $0.01 per query
+#OPENAI_COST_PER_1K_TOKENS = 0.002  # Example: $0.002 per 1k tokens
+#SERPER_COST_PER_QUERY = 0.01       # Example: $0.01 per query
 
 # Estimating token usage for OpenAI API calls
-openai_token_usage = 1500  # Adjust based on your actual token usage per call
-api_costs["OpenAI API"] = (openai_token_usage / 1000) * OPENAI_COST_PER_1K_TOKENS
+#openai_token_usage = 1500  # Adjust based on your actual token usage per call
+#api_costs["OpenAI API"] = (openai_token_usage / 1000) * OPENAI_COST_PER_1K_TOKENS
 
 # Estimating query usage for Serper API calls
-serper_query_count = 1  # Assume 1 query per flight search
-api_costs["Serper API"] = serper_query_count * SERPER_COST_PER_QUERY
+#serper_query_count = 1  # Assume 1 query per flight search
+#api_costs["Serper API"] = serper_query_count * SERPER_COST_PER_QUERY
 
 # Display the metrics in the app
 st.subheader("Execution Times (in seconds)")
 for task, exec_time in execution_times.items():
     st.write(f"- **{task}**: {exec_time:.2f} seconds")
 
-st.subheader("Estimated API Costs (in USD)")
-for api, cost in api_costs.items():
-    st.write(f"- **{api}**: ${cost:.4f}")
+#st.subheader("Estimated API Costs (in USD)")
+#for api, cost in api_costs.items():
+    #st.write(f"- **{api}**: ${cost:.4f}")
 
 # Add an overall summary
 st.markdown(
     """
     ### Summary
     - **Total Execution Time**: {:.2f} seconds
-    - **Total Estimated Cost**: ${:.4f}
-    """.format(sum(execution_times.values()), sum(api_costs.values()))
+    """.format(sum(execution_times.values()))
 )
