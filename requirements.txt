@@ -13,4 +13,6 @@ torch
 openai
 langchain-core
 reportlab
+rouge-score
+
 
