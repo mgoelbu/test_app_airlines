@@ -10,6 +10,9 @@ import openai
 import streamlit as st
 import time
 
+# Initialize cost tracking in session state
+if "api_costs" not in st.session_state:
+    st.session_state.api_costs = {"OpenAI": 0, "Serper": 0}
 
 # Load API keys
 os.environ["OPENAI_API_KEY"] = st.secrets['MyOpenAIKey']
@@ -53,21 +56,33 @@ def format_flight_prices_with_chatgpt(raw_response, origin, destination, departu
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
+
+        # Extract token usage for cost calculation
+        token_usage = response["usage"]
+        cost = (token_usage["total_tokens"] / 1000) * OPENAI_COST_PER_1K_TOKENS
+        st.session_state.api_costs["OpenAI"] += cost  # Aggregate cost
+
         return response.choices[0].message["content"]
     except Exception as e:
         return f"An error occurred while formatting the response: {e}"
+
 
 # Function to fetch flight prices and format them with ChatGPT
 def fetch_flight_prices(origin, destination, departure_date):
     try:
         query = f"flights from {origin} to {destination} on {departure_date}"
         raw_response = serper_tool.func(query)
+
+        # Calculate cost for Serper API
+        st.session_state.api_costs["Serper"] += SERPER_COST_PER_QUERY
+
         formatted_response = format_flight_prices_with_chatgpt(
             raw_response, origin, destination, departure_date
         )
         return formatted_response
     except Exception as e:
         return f"An error occurred while fetching or formatting flight prices: {e}"
+
 
 # Function to generate a detailed itinerary using ChatGPT
 def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget):
@@ -89,9 +104,16 @@ def generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
+
+        # Extract token usage for cost calculation
+        token_usage = response["usage"]
+        cost = (token_usage["total_tokens"] / 1000) * OPENAI_COST_PER_1K_TOKENS
+        st.session_state.api_costs["OpenAI"] += cost  # Aggregate cost
+
         return response.choices[0].message["content"]
     except Exception as e:
         return f"An error occurred while generating the itinerary: {e}"
+
 
 # Function to create a PDF from itinerary and flight prices
 def create_pdf(itinerary, flight_prices):
@@ -294,14 +316,17 @@ for task, exec_time in execution_times.items():
     st.write(f"- **{task}**: {exec_time:.2f} seconds")
 
 st.subheader("Estimated API Costs (in USD)")
-for api, cost in api_costs.items():
+for api, cost in st.session_state.api_costs.items():
     st.write(f"- **{api}**: ${cost:.4f}")
 
-# Add an overall summary
+# Add a total cost summary
+total_cost = sum(st.session_state.api_costs.values())
+total_execution_time = sum(execution_times.values())
+
 st.markdown(
-    """
+    f"""
     ### Summary
-    - **Total Execution Time**: {:.2f} seconds
-    - **Total Estimated Cost**: ${:.4f}
-    """.format(sum(execution_times.values()), sum(api_costs.values()))
+    - **Total Execution Time**: {total_execution_time:.2f} seconds
+    - **Total Estimated API Cost**: ${total_cost:.4f}
+    """
 )
