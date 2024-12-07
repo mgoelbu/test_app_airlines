@@ -296,8 +296,8 @@ if "itinerary" in st.session_state and st.session_state.itinerary:
         for task, exec_time in execution_times.items():
             st.write(f"- **{task}**: {exec_time:.2f} seconds")
 
-    # Reference Itinerary for Evaluation (manually curated or from trusted sources)
-    reference_itinerary = """
+        # Reference Itinerary for Evaluation (manually curated or from trusted sources)
+        reference_itinerary = """
 Trip Itinerary: Boston to Sydney
 Travel Dates: December 29, 2024 - January 3, 2025
 Budget Level: Low (up to $5,000)
@@ -363,36 +363,36 @@ Additional Tips:
 - Enjoy local eateries for affordable meals; budget around 20-35 AUD per meal.
 """
 
-    # Generate Itinerary for Evaluation (Replace with the output from the app)
-    generated_itinerary = st.session_state.itinerary
+        # Generate Itinerary for Evaluation (Replace with the output from the app)
+        generated_itinerary = st.session_state.itinerary
 
-    # ROUGE Evaluation
-    def evaluate_rouge(reference, generated):
-        scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
-        scores = scorer.score(reference, generated)
-        return scores
+        # ROUGE Evaluation
+        def evaluate_rouge(reference, generated):
+            scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+            scores = scorer.score(reference, generated)
+            return scores
+    
+        # BLEU Evaluation
+        def evaluate_bleu(reference, generated):
+            # Tokenize and split sentences into lists of words
+            reference_sentences = [reference.split()]  # BLEU expects a list of references
+            generated_sentences = generated.split()  # Tokenize generated text
+            smoothing = SmoothingFunction().method1  # Add smoothing to avoid zero scores
+            bleu_score = sentence_bleu(reference_sentences, generated_sentences, smoothing_function=smoothing)
+            return bleu_score
 
-    # BLEU Evaluation
-    def evaluate_bleu(reference, generated):
-        # Tokenize and split sentences into lists of words
-        reference_sentences = [reference.split()]  # BLEU expects a list of references
-        generated_sentences = generated.split()  # Tokenize generated text
-        smoothing = SmoothingFunction().method1  # Add smoothing to avoid zero scores
-        bleu_score = sentence_bleu(reference_sentences, generated_sentences, smoothing_function=smoothing)
-        return bleu_score
+        # Perform Evaluations
+        rouge_scores = evaluate_rouge(reference_itinerary, generated_itinerary)
+        bleu_score = evaluate_bleu(reference_itinerary, generated_itinerary)
 
-    # Perform Evaluations
-    rouge_scores = evaluate_rouge(reference_itinerary, generated_itinerary)
-    bleu_score = evaluate_bleu(reference_itinerary, generated_itinerary)
-
-    # Display ROUGE Scores
-    st.markdown("#### ROUGE Scores")
-    st.write(f"ROUGE-1 (Unigram Overlap): {rouge_scores['rouge1'].fmeasure:.4f}")
-    st.write(f"ROUGE-2 (Bigram Overlap): {rouge_scores['rouge2'].fmeasure:.4f}")
-    st.write(f"ROUGE-L (Longest Common Subsequence): {rouge_scores['rougeL'].fmeasure:.4f}")
-
-    # Display BLEU Score
-    st.markdown("#### BLEU Score")
-    st.write(f"BLEU Score: {bleu_score:.4f}")
+        # Display ROUGE Scores
+        st.markdown("#### ROUGE Scores")
+        st.write(f"ROUGE-1 (Unigram Overlap): {rouge_scores['rouge1'].fmeasure:.4f}")
+        st.write(f"ROUGE-2 (Bigram Overlap): {rouge_scores['rouge2'].fmeasure:.4f}")
+        st.write(f"ROUGE-L (Longest Common Subsequence): {rouge_scores['rougeL'].fmeasure:.4f}")
+    
+        # Display BLEU Score
+        st.markdown("#### BLEU Score")
+        st.write(f"BLEU Score: {bleu_score:.4f}")
 else:
     st.info("Please generate an itinerary first to view evaluation metrics.")
