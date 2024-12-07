@@ -270,6 +270,25 @@ import time
 from rouge_score import rouge_scorer
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
+# Add custom CSS for expander
+st.markdown(
+    """
+    <style>
+    .st-expander {
+        background-color: #f0f8ff; /* Light blue background */
+        border-radius: 10px;
+        border: 1px solid #2980b9; /* Blue border */
+        padding: 10px;
+    }
+    .st-expander > div:first-child {
+        font-weight: bold;
+        color: #2980b9; /* Blue text for header */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Add a section at the bottom for evaluation metrics
 if "itinerary" in st.session_state and st.session_state.itinerary:
     st.markdown("### Your itinerary has been generated successfully!")
