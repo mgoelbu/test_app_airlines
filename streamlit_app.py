@@ -269,60 +269,34 @@ if st.session_state.itinerary and st.session_state.flight_prices:
 
 
 import time
-
-# Add a section at the bottom for evaluation metrics
-st.markdown("## 📊 Evaluation Metrics")
-
-# Initialize variables to store metrics
-execution_times = {}
-#api_costs = {}
-
-# Measure the execution time for fetching flight prices
-start_time = time.time()
-if "flight_prices" in st.session_state and st.session_state.flight_prices:
-    fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
-end_time = time.time()
-execution_times["Fetch Flight Prices"] = end_time - start_time
-
-# Measure the execution time for generating an itinerary
-start_time = time.time()
-if "itinerary" in st.session_state and st.session_state.itinerary:
-    generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget)
-end_time = time.time()
-execution_times["Generate Itinerary"] = end_time - start_time
-
-# Calculate approximate costs (replace these rates with your actual API cost structures)
-#OPENAI_COST_PER_1K_TOKENS = 0.002  # Example: $0.002 per 1k tokens
-#SERPER_COST_PER_QUERY = 0.01       # Example: $0.01 per query
-
-# Estimating token usage for OpenAI API calls
-#openai_token_usage = 1500  # Adjust based on your actual token usage per call
-#api_costs["OpenAI API"] = (openai_token_usage / 1000) * OPENAI_COST_PER_1K_TOKENS
-
-# Estimating query usage for Serper API calls
-#serper_query_count = 1  # Assume 1 query per flight search
-#api_costs["Serper API"] = serper_query_count * SERPER_COST_PER_QUERY
-
-# Display the metrics in the app
-st.subheader("Execution Times (in seconds)")
-for task, exec_time in execution_times.items():
-    st.write(f"- **{task}**: {exec_time:.2f} seconds")
-
-#st.subheader("Estimated API Costs (in USD)")
-#for api, cost in api_costs.items():
-    #st.write(f"- **{api}**: ${cost:.4f}")
-
-# Add an overall summary
-st.markdown(
-    """
-    ### Summary
-    - **Total Execution Time**: {:.2f} seconds
-    """.format(sum(execution_times.values()))
-)
-
-
 from rouge_score import rouge_scorer
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+
+# Add a section at the bottom for evaluation metrics
+if "itinerary" in st.session_state and st.session_state.itinerary:
+    st.markdown("### Your itinerary has been generated successfully!")
+
+    # Expander for Evaluation Metrics
+    with st.expander("Evaluation Metrics", expanded=False):
+        # Initialize variables to store metrics
+        execution_times = {}
+
+        # Measure the execution time for fetching flight prices
+        start_time = time.time()
+        fetch_flight_prices(origin, destination, travel_dates[0].strftime("%Y-%m-%d"))
+        end_time = time.time()
+        execution_times["Fetch Flight Prices"] = end_time - start_time
+
+        # Measure the execution time for generating an itinerary
+        start_time = time.time()
+        generate_itinerary_with_chatgpt(origin, destination, travel_dates, interests, budget)
+        end_time = time.time()
+        execution_times["Generate Itinerary"] = end_time - start_time
+
+        # Display Execution Times
+        st.markdown("#### Execution Times (in seconds)")
+        for task, exec_time in execution_times.items():
+            st.write(f"- **{task}**: {exec_time:.2f} seconds")
 
 # Reference Itinerary for Evaluation (manually curated or from trusted sources)
 reference_itinerary = """
@@ -392,38 +366,36 @@ Additional Tips:
 
 """
 
-# Generated Itinerary (Replace with the output from the app)
-generated_itinerary = st.session_state.itinerary if "itinerary" in st.session_state else ""
+# Generate Itinerary for Evaluation (Replace with the output from the app)
+        generated_itinerary = st.session_state.itinerary
 
-# ROUGE Evaluation
-def evaluate_rouge(reference, generated):
-    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
-    scores = scorer.score(reference, generated)
-    return scores
+        # ROUGE Evaluation
+        def evaluate_rouge(reference, generated):
+            scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+            scores = scorer.score(reference, generated)
+            return scores
 
-# BLEU Evaluation
-def evaluate_bleu(reference, generated):
-    # Tokenize and split sentences into lists of words
-    reference_sentences = [reference.split()]  # BLEU expects a list of references
-    generated_sentences = generated.split()  # Tokenize generated text
-    smoothing = SmoothingFunction().method1  # Add smoothing to avoid zero scores
-    bleu_score = sentence_bleu(reference_sentences, generated_sentences, smoothing_function=smoothing)
-    return bleu_score
+        # BLEU Evaluation
+        def evaluate_bleu(reference, generated):
+            # Tokenize and split sentences into lists of words
+            reference_sentences = [reference.split()]  # BLEU expects a list of references
+            generated_sentences = generated.split()  # Tokenize generated text
+            smoothing = SmoothingFunction().method1  # Add smoothing to avoid zero scores
+            bleu_score = sentence_bleu(reference_sentences, generated_sentences, smoothing_function=smoothing)
+            return bleu_score
 
-# Perform Evaluations if Both Reference and Generated Itineraries are Available
-if generated_itinerary:
-    rouge_scores = evaluate_rouge(reference_itinerary, generated_itinerary)
-    bleu_score = evaluate_bleu(reference_itinerary, generated_itinerary)
+        # Perform Evaluations
+        rouge_scores = evaluate_rouge(reference_itinerary, generated_itinerary)
+        bleu_score = evaluate_bleu(reference_itinerary, generated_itinerary)
 
-    # Display ROUGE Scores
-    st.subheader("ROUGE Evaluation Metrics")
-    st.write(f"ROUGE-1 (Unigram Overlap): {rouge_scores['rouge1'].fmeasure:.4f}")
-    st.write(f"ROUGE-2 (Bigram Overlap): {rouge_scores['rouge2'].fmeasure:.4f}")
-    st.write(f"ROUGE-L (Longest Common Subsequence): {rouge_scores['rougeL'].fmeasure:.4f}")
+        # Display ROUGE Scores
+        st.markdown("#### ROUGE Scores")
+        st.write(f"ROUGE-1 (Unigram Overlap): {rouge_scores['rouge1'].fmeasure:.4f}")
+        st.write(f"ROUGE-2 (Bigram Overlap): {rouge_scores['rouge2'].fmeasure:.4f}")
+        st.write(f"ROUGE-L (Longest Common Subsequence): {rouge_scores['rougeL'].fmeasure:.4f}")
 
-    # Display BLEU Score
-    st.subheader("BLEU Evaluation Metric")
-    st.write(f"BLEU Score: {bleu_score:.4f}")
+        # Display BLEU Score
+        st.markdown("#### BLEU Score")
+        st.write(f"BLEU Score: {bleu_score:.4f}")
 else:
-    st.error("No generated itinerary available for evaluation.")
-
+    st.info("Please generate an itinerary first to view evaluation metrics.")
